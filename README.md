@@ -42,7 +42,7 @@ Status: **feasibility spikes done** (see findings); next is tooling. Nothing pla
 | .NET SDK | 9.0.318 | winget `Microsoft.DotNet.SDK.9` |
 | JDK | Microsoft OpenJDK 17.0.20.1 (portable zip) | `D:\Tools\JDK17` (`JAVA_HOME`) |
 | Android SDK | cmdline-tools, platform-tools, build-tools 35.0.1, android-35, NDK 28.1.13356709, CMake 3.10.2 | `D:\Android\sdk` (`ANDROID_HOME`) |
-| Godot | 4.5.1-stable .NET editor + export templates | `D:\Tools\Godot` |
+| Godot | 4.5.1-stable .NET (official, commit f62fdbde1) + export templates, self-contained (`._sc_`) | `D:\Tools\Godot` (templates in `editor_data\export_templates`) |
 
 The MSI build of the JDK ignores winget's `--location`, so use the portable zip to keep it on D:.
 
