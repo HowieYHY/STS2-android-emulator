@@ -1,0 +1,39 @@
+# ---- NEVER commit game files ----
+# The game's pack, assemblies and anything extracted from them stay on the user's machine.
+*.pck
+*.pck.*
+sts2*
+0Harmony.dll
+*.dll
+*.pdb
+*.exe
+*.so
+*.apk
+*.aab
+*.idsig
+extracted/
+decompiled/
+game/
+assets-dump/
+
+# ---- Build output ----
+bin/
+obj/
+build/
+out/
+.godot/
+.import/
+android/build/
+*.keystore
+*.jks
+export_presets.cfg.local
+
+# ---- Tooling / OS ----
+.vs/
+.vscode/
+.idea/
+*.user
+*.log
+Thumbs.db
+.DS_Store
+desktop.ini
