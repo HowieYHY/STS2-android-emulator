@@ -1,0 +1,19 @@
+; Android shell for the STS2 port. This project contains no game content.
+; At runtime the APK starts with --main-pack pointing at overlay.pck on the phone (built by
+; scripts/push-game.ps1 from the user's own game files), so these settings only matter if that is missing.
+config_version=5
+
+[application]
+config/name="STS2 Port"
+run/main_scene="res://main.tscn"
+config/features=PackedStringArray("4.5", "C#", "Mobile")
+
+[display]
+window/handheld/orientation=4
+
+[dotnet]
+project/assembly_name="StsAndroidShell"
+
+[rendering]
+renderer/rendering_method="mobile"
+textures/vram_compression/import_etc2_astc=true

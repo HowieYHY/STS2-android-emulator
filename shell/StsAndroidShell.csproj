@@ -1,0 +1,9 @@
+<Project Sdk="Godot.NET.Sdk/4.5.1">
+  <PropertyGroup>
+    <!-- net9.0 so the exported .NET runtime matches what the game's sts2.dll was built against. -->
+    <TargetFramework>net9.0</TargetFramework>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <RootNamespace>StsAndroidShell</RootNamespace>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+</Project>

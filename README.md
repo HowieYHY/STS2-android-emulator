@@ -5,7 +5,47 @@ original code (a Godot Android shell, stubs, Harmony patches, scripts and docs).
 you copy your own `SlayTheSpire2.pck` and `sts2.dll` from your Steam install to your phone with
 `scripts/push-game.ps1`.
 
-Status: **feasibility spikes done** (see findings); next is tooling. Nothing playable yet.
+Status: **boots to the main menu on a Pixel 9a** (Android 17, Mali-G715). No Spine animations or audio yet
+(plugins not built), no touch mapping yet.
+
+## How it works
+
+```
+APK (this repo only)            phone: /sdcard/Android/data/com.howieyhy.sts2port/files/
+  Godot 4.5.1 engine              overlay.pck        <- built on your PC by push-game.ps1
+  .NET (Mono) runtime                .NET assemblies: Android runtime (from the APK) + your sts2.dll
+  launch args:                         (patched copy) + its managed deps
+    --main-pack .../overlay.pck      game's startup config, project.binary with our boot autoload first
+    --force-steam off                android_boot/boot.gd (mounts SlayTheSpire2.pck, fixes language)
+                                  SlayTheSpire2.pck  <- your file, unchanged
+```
+
+Godot on Android loads C# assemblies from `res://.godot/mono/publish/arm64/` through its own file system,
+so they can live in a pack on the phone instead of inside the APK.
+
+## Usage
+
+```powershell
+scriptsuild-apk.ps1                                   # builds build\sts2port.apk (repo code only)
+adb install -r build\sts2port.apk
+powershell -ExecutionPolicy Bypass -File scripts\push-game.ps1 -GameDir "D:\Steam\steamapps\common\Slay the Spire 2"
+```
+`push-game.ps1` patches a copy of `sts2.dll` (into `%LOCALAPPDATA%\sts2port`), builds `overlay.pck` and pushes
+both packs. The 1.9 GB pack is only re-sent when its size changes.
+
+## Patches to sts2.dll (tools/Sts2Patcher)
+
+Applied to a copy with Mono.Cecil; each one checks the code shape and fails loudly after a game update.
+| Patch | Why |
+|---|---|
+| ModelDb lazy init | Mono runs `beforefieldinit` static initialisers when an instance is created, CoreCLR only on first static field read. Models with static fields that call ModelDb (e.g. `BowlbugsNormal`) then ran mid-`ModelDb.Init` and crashed startup. `Get<T>` now creates missing models on demand. |
+
+## Known issues
+- `release_info.json` is only looked for next to the executable, which is read-only on Android: the version
+  check for mods is skipped (harmless).
+- 1,244 BC textures are decompressed on the CPU (Mali has no BC): first "Common" preload takes ~40 s in the
+  background and VRAM reaches ~500 MB at the main menu.
+
 
 ## Feasibility findings (game v0.111.0, Godot 4.5.1 .NET)
 

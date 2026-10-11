@@ -2,7 +2,7 @@
 # The game's pack, assemblies and anything extracted from them stay on the user's machine.
 *.pck
 *.pck.*
-sts2*
+sts2.*
 0Harmony.dll
 *.dll
 *.pdb
@@ -37,3 +37,5 @@ export_presets.cfg.local
 Thumbs.db
 .DS_Store
 desktop.ini
+__pycache__/
+*.pyc

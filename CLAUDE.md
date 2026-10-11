@@ -34,3 +34,19 @@ See README "Feasibility findings". Decompiled source lives only in the scratchpa
   `--version 9.1.0.7988` and run with `DOTNET_ROLL_FORWARD=Major`.
 - Prefer the game's own switches over patches: `--force-steam off` (Null platform), empty Sentry DSN, `nomods`.
   Check the decompiled source for a built-in flag before writing a Harmony patch.
+- Godot's `JSON.parse_string` turns every number into a float; re-saving the game's `settings.save` wrote
+  `"schema_version": 8.0` and the game discarded the file as corrupt. **Never re-serialise the game's saves;
+  edit only the bytes you mean to change** (regex on the text).
+- Android `OS.get_locale()` is Java's `Locale.toString()` and can carry extensions
+  (`en_SG_#u-fw-sun-ms-metric-mu-celsius`); the game's `new CultureInfo(...)` throws on it. The boot script
+  saves a language first so the game skips that path.
+- Mono vs CoreCLR: `beforefieldinit` static initialisers run earlier on Mono (on instance creation). Expect
+  more ordering bugs like ModelDb's; fix them in `tools/Sts2Patcher` with a shape check.
+- `.gitignore` is matched case-insensitively on Windows: `sts2*` silently ignored `tools/Sts2Patcher`. Use
+  narrow patterns (`sts2.*`) and check `git status` lists every new folder before committing.
+- Running `push-game.ps1` via `powershell.exe` hits the execution policy; use `-ExecutionPolicy Bypass -File`.
+  Under `$ErrorActionPreference = "Stop"`, PowerShell 5.1 turns adb's stderr progress into an error:
+  run native tools through a helper and check `$LASTEXITCODE`.
+- Git Bash rewrites `/data/...` and `/sdcard/...` adb arguments into Windows paths: `export MSYS_NO_PATHCONV=1`.
+- Long extraction paths fail in the scratchpad (MAX_PATH); extract SDK zips to a short path on D:.
+
