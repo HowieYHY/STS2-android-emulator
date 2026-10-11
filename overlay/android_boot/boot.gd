@@ -25,6 +25,18 @@ func _init() -> void:
 	_ensure_language()
 
 
+## Android's Back button/gesture arrives as NOTIFICATION_WM_GO_BACK_REQUEST (quit_on_go_back is turned off in the
+## overlay's project settings). Turn it into Escape, which is the game's own back/pause key on PC.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		for pressed in [true, false]:
+			var key := InputEventKey.new()
+			key.keycode = KEY_ESCAPE
+			key.physical_keycode = KEY_ESCAPE
+			key.pressed = pressed
+			Input.parse_input_event(key)
+
+
 func _main_pack_dir() -> String:
 	var args := OS.get_cmdline_args()
 	var i := args.find("--main-pack")

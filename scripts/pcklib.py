@@ -114,3 +114,9 @@ def variant_string(s: str) -> bytes:
     """Encode a Godot Variant STRING (type 4)."""
     b = s.encode("utf-8")
     return struct.pack("<II", 4, len(b)) + b + b"\0" * ((-len(b)) % 4)
+
+
+def variant_bool(value: bool) -> bytes:
+    """Encode a Godot Variant BOOL (type 1)."""
+    return struct.pack("<II", 1, 1 if value else 0)
+
