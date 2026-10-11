@@ -49,4 +49,11 @@ See README "Feasibility findings". Decompiled source lives only in the scratchpa
   run native tools through a helper and check `$LASTEXITCODE`.
 - Git Bash rewrites `/data/...` and `/sdcard/...` adb arguments into Windows paths: `export MSYS_NO_PATHCONV=1`.
 - Long extraction paths fail in the scratchpad (MAX_PATH); extract SDK zips to a short path on D:.
+- Godot's `--install-android-build-template` does nothing on its own; it only works together with
+  `--export-debug/--export-release`. The FMOD addon's `.aar` (FMOD Java init) needs the Gradle build.
+- Before asking the user for a manual download, check whether the needed files already ship in a public
+  release: the fmod-gdextension 6.1.0 release bundles FMOD 2.03.06's Android libs (verified byte-identical
+  to the official SDK the user downloaded).
+- When adb lists nothing but Windows shows the phone's `MI_01` WinUSB interface, the PC side is fine:
+  replug the cable and accept the on-phone prompt.
 

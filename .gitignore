@@ -41,4 +41,6 @@ __pycache__/
 *.pyc
 
 # Third-party plugin binaries, fetched by scripts/fetch-plugins.ps1
-shell/addons/
+shell/addons/spine/
+shell/addons/fmod/
+shell/android/

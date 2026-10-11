@@ -11,6 +11,10 @@ config/features=PackedStringArray("4.5", "C#", "Mobile")
 [display]
 window/handheld/orientation=4
 
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/sts2port_android/plugin.cfg")
+
 [dotnet]
 project/assembly_name="StsAndroidShell"
 

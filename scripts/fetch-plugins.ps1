@@ -31,3 +31,21 @@ Expand-Archive -Path $zip -DestinationPath $x
 New-Item -ItemType Directory -Force (Split-Path $dest) | Out-Null
 Move-Item (Join-Path $x "bin") $dest
 Write-Host "Spine plugin ready in $dest"
+
+# FMOD: utopia-rise fmod-gdextension 6.1.0 for Godot 4.5. Its Windows plugin DLL is byte-identical to the one the
+# game ships, so this is the game's exact addon version. The release bundles FMOD's own Android libraries
+# (libfmod.so, libfmodstudio.so) and the Android plugin .aar that runs FMOD's Java init.
+$FmodUrl = "https://github.com/utopia-rise/fmod-gdextension/releases/download/6.1.0-4.5.0/addons.zip"
+$FmodSha256 = "8796f6cd1cb38bf7ff4da2648f8af2695244ffdb80a7ac4ab8a171ca44895713"
+$zip = Join-Path $tmp "fmod.zip"
+Write-Host "Downloading fmod-gdextension 6.1.0 for Godot 4.5..."
+Invoke-WebRequest -Uri $FmodUrl -OutFile $zip -UseBasicParsing
+$hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
+if ($hash -ne $FmodSha256) { throw "fmod zip SHA-256 mismatch: got $hash, expected $FmodSha256" }
+$dest = Join-Path $shell "addons\fmod"
+if (Test-Path $dest) { Remove-Item -Recurse -Force $dest }
+$x = Join-Path $tmp "fmod"
+if (Test-Path $x) { Remove-Item -Recurse -Force $x }
+Expand-Archive -Path $zip -DestinationPath $x
+Move-Item (Join-Path $x "fmod") $dest
+Write-Host "FMOD plugin ready in $dest"
