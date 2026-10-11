@@ -35,6 +35,17 @@ Status: **feasibility spikes done** (see findings); next is tooling. Nothing pla
 3. **Memory**: 1.9 GB pack plus CPU-decompressed BC textures on a phone.
 4. **Game updates** may need the port re-checked.
 
+## Build machine setup (Windows)
+
+| Tool | Version | Location |
+|---|---|---|
+| .NET SDK | 9.0.318 | winget `Microsoft.DotNet.SDK.9` |
+| JDK | Microsoft OpenJDK 17.0.20.1 (portable zip) | `D:\Tools\JDK17` (`JAVA_HOME`) |
+| Android SDK | cmdline-tools, platform-tools, build-tools 35.0.1, android-35, NDK 28.1.13356709, CMake 3.10.2 | `D:\Android\sdk` (`ANDROID_HOME`) |
+| Godot | 4.5.1-stable .NET editor + export templates | `D:\Tools\Godot` |
+
+The MSI build of the JDK ignores winget's `--location`, so use the portable zip to keep it on D:.
+
 ## Tools
 - `python -I scripts/spikes/pck_list.py <pck> <outdir>` — list a pck's files and header (read-only).
 - `python -I scripts/spikes/pck_extract.py <pck> <outdir> <regex>` — extract matching files (read-only).
