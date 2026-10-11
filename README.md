@@ -5,20 +5,35 @@ original code (a Godot Android shell, stubs, Harmony patches, scripts and docs).
 you copy your own `SlayTheSpire2.pck` and `sts2.dll` from your Steam install to your phone with
 `scripts/push-game.ps1`.
 
-Status: **feasibility spikes** (nothing playable yet).
+Status: **feasibility spikes done** (see findings); next is tooling. Nothing playable yet.
 
 ## Feasibility findings (game v0.111.0, Godot 4.5.1 .NET)
+
+**Verdict: feasible, no hard blocker found.** The biggest unknowns are now runtime ones that only the phone can answer
+(loading `sts2.dll` from outside the APK, Mono on arm64, memory use).
 
 | Question | Finding | Impact |
 |---|---|---|
 | Is the `.pck` encrypted? | No. Pack format v3, flags `0x2` (relative file base only), 0 of 15,890 files encrypted. | Stock Godot can mount it. |
-| Custom engine modules? | Exe reports `4.5.1.m.14.mono.custom_build`; its module list matches stock 4.5. Every type used in scenes is stock Godot 4.5 apart from Spine and FMOD (GDExtensions). | Stock Godot 4.5.1 .NET should work. GodotSharp API diff still to check. |
+| Custom engine? | Exe says `4.5.1.m.14.mono.custom_build`, but its module list matches stock 4.5, every scene type is stock 4.5 (plus Spine/FMOD GDExtensions), and the shipped `GodotSharp.dll` is **byte-identical** to NuGet GodotSharp 4.5.1. | Stock Godot 4.5.1 .NET templates should run it. Any private C++ fixes the studio made are lost (unknown, probably minor). |
 | Renderer | Project features include `Mobile`; ETC2/ASTC import is enabled. | Good fit for phones. |
-| Textures | 1,244 textures are desktop BC formats (S3TC/BPTC); no ASTC/ETC2 copies in the pck. | Godot decompresses BC on the CPU on GPUs without BC support: works, but uses more RAM and load time. A later optional step can transcode to ASTC on the PC. |
-| FMOD | Utopia-rise `fmod-gdextension` (FMOD 2.03, `libfmod.so.14`); its `.gdextension` already lists Android arm64 paths. Banks are `banks/desktop`. | Needs an Android build of the addon plus the FMOD Android SDK (free FMOD account). |
-| Spine | Official `spine_godot` GDExtension; `.gdextension` already lists Android arm64 paths. | Official Android binaries exist for matching Spine versions. |
-| Sentry | GDExtension with no Android entry; `SentryBootstrap.cs` autoload. | Stub or disable. |
-| Steam / DXGI | `sts2.dll` uses `SteamAPI` and `Vortice.DXGI` (`CreateDXGIFactory1`). | Stub Steamworks.NET; patch out DXGI. |
+| Textures | 1,244 textures are desktop BC formats (S3TC/BPTC, ~1.2 GB); no ASTC/ETC2 copies. | GPUs without BC support make Godot decompress them on the CPU: works, but costs RAM and load time. Optional later fix: transcode to ASTC on the PC into an overlay pack. |
+| FMOD | utopia-rise `fmod-gdextension`, FMOD **2.03.06**; its `.gdextension` already lists Android arm64 paths. Banks are `banks/desktop` (platform-neutral format). | Needs the addon built for Android + FMOD 2.03.06 Android libs (free FMOD account download). |
+| Spine | Official `spine_godot` GDExtension, skeleton data **4.2** (editor 4.2.03); `.gdextension` lists Android arm64 paths. | Use spine-godot 4.2 built for Godot 4.5 / Android arm64. |
+| Steam | Behind a platform layer with a `Null` implementation. The game has a launch flag **`--force-steam off`** that skips Steam and runs on the Null platform (local saves, no cloud/achievements/leaderboards). | Pass `--force-steam off` via the export's command-line args. Steamworks.NET is still referenced, so its `steam_api` P/Invokes must never be hit (they aren't on the Null path). |
+| Sentry | `SentryBootstrap.cs` autoload; Sentry is skipped when the project DSN is empty. No Android native lib. | Override `sentry/config/dsn` to empty. No crash reports leave the phone. |
+| DXGI (Vortice) | Used only in `OsDebugInfo` (system-info logging). | Guard or patch out; harmless otherwise. |
+| P/Invoke | No `[DllImport]` in `sts2.dll` itself. One `Process.Start` (git helper, editor-only). | Nothing else Windows-native in game logic. |
+| Harmony | Only used by the game's own mod loader (`mods/` folder). | We avoid needing Harmony: touch input and fixes can live in our shell's own nodes. Harmony on Mono arm64 is unproven, so it's a fallback, not the plan. |
+
+### Main remaining risks
+1. **Loading `sts2.dll` from the phone's storage** instead of compiling it into the APK. Plan: the shell's own
+   assembly loads it at startup and registers its script classes with Godot's C# bridge. If that proves impossible,
+   fallback is building the APK locally *with* your own `sts2.dll` (never committed or shared).
+2. **Mono on Android vs CoreCLR on desktop**: the game runs on CoreCLR; Godot Android uses Mono. Rare API differences
+   may surface at runtime.
+3. **Memory**: 1.9 GB pack plus CPU-decompressed BC textures on a phone.
+4. **Game updates** may need the port re-checked.
 
 ## Tools
 - `python -I scripts/spikes/pck_list.py <pck> <outdir>` — list a pck's files and header (read-only).

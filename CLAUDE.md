@@ -26,7 +26,11 @@ Plan: `C:\Users\Admin\.claude\plans\i-want-to-make-atomic-glacier.md` (riskiest 
   (like mobile StS1).
 
 ## Known facts about the game (v0.111.0)
-See README "Feasibility findings".
+See README "Feasibility findings". Decompiled source lives only in the scratchpad (re-create with
+`ilspycmd -p -o <outside-repo> -r <game data dir> <game data dir>/sts2.dll`).
 
 ## Lessons learnt
-- (none yet)
+- Latest `ilspycmd` (11.x) won't install on the .NET 9 SDK ("DotnetToolSettings.xml not found"). Pin
+  `--version 9.1.0.7988` and run with `DOTNET_ROLL_FORWARD=Major`.
+- Prefer the game's own switches over patches: `--force-steam off` (Null platform), empty Sentry DSN, `nomods`.
+  Check the decompiled source for a built-in flag before writing a Harmony patch.
