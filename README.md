@@ -5,9 +5,10 @@ original code (a Godot Android shell, stubs, Harmony patches, scripts and docs).
 you copy your own `SlayTheSpire2.pck` and `sts2.dll` from your Steam install to your phone with
 `scripts/push-game.ps1`.
 
-Status: **main menu fully working on a Pixel 9a** (Android 17, Mali-G715): Spine animations, FMOD audio
-(banks load), tap = click. Not yet tested: a run, combat, save/load. Touch mapping (long-press, inspect
-screens) not built yet.
+Status: **playable on a Pixel 9a** (Android 17, Mali-G715): main menu, Spine animations, FMOD audio,
+character select, map, combat (drag a card onto an enemy plays it) and run auto-save all work with default
+touch-as-mouse. Not yet: long-press = right-click, inspect-on-tap selection screens, confirm button,
+save/load across restarts, texture/performance work.
 
 ## How it works
 
@@ -43,6 +44,8 @@ Applied to a copy with Mono.Cecil; each one checks the code shape and fails loud
 | ModelDb lazy init | Mono runs `beforefieldinit` static initialisers when an instance is created, CoreCLR only on first static field read. Models with static fields that call ModelDb (e.g. `BowlbugsNormal`) then ran mid-`ModelDb.Init` and crashed startup. `Get<T>` now creates missing models on demand. |
 
 ## Known issues
+- Very short taps can be missed by some menu buttons (they react to a press that lasts a few frames).
+  The touch layer will hold presses for a minimum time.
 - Debug builds show Android's "not 16 KB-aligned" notice for some third-party native libs (Mono runtime,
   Spine). Harmless on this phone (4 KB pages); revisit for release builds.
 - Debug builds use FMOD's logging libraries; time to main menu is ~19 s (10 s without FMOD).
