@@ -26,6 +26,7 @@ so they can live in a pack on the phone instead of inside the APK.
 ## Usage
 
 ```powershell
+powershell -ExecutionPolicy Bypass -File scripts\fetch-plugins.ps1   # once: official spine-godot 4.2 build (SHA-256 pinned)
 powershell -ExecutionPolicy Bypass -File scripts\build-apk.ps1   # builds build\sts2port.apk (repo code only)
 adb install -r build\sts2port.apk
 powershell -ExecutionPolicy Bypass -File scripts\push-game.ps1 -GameDir "D:\Steam\steamapps\common\Slay the Spire 2"
