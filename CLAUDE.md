@@ -56,4 +56,12 @@ See README "Feasibility findings". Decompiled source lives only in the scratchpa
   to the official SDK the user downloaded).
 - When adb lists nothing but Windows shows the phone's `MI_01` WinUSB interface, the PC side is fine:
   replug the cable and accept the on-phone prompt.
+- Godot notification numbers: take them from the engine source, not memory. `NOTIFICATION_APPLICATION_PAUSED`
+  is 2015 (MainLoop), not 1015; the first save-on-pause patch silently never fired.
+- Android never "quits" a game normally: anything the game saves only on quit must also be saved on
+  `NOTIFICATION_APPLICATION_PAUSED`.
+- Release builds are signed with the same local debug key on purpose: changing the signing key forces an
+  uninstall, which deletes the saves in the app's private storage.
+- Verify a push by its effect (file timestamp on the phone), never by a filtered command's silence: a
+  `push-game.ps1` call from Git Bash failed quietly and the phone kept the old overlay.
 

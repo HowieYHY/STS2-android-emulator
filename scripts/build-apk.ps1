@@ -21,6 +21,13 @@ New-Item -ItemType Directory -Force $out, $GradleHome | Out-Null
 $env:GRADLE_USER_HOME = $GradleHome
 
 $mode = if ($Release) { "--export-release" } else { "--export-debug" }
+if ($Release) {
+    # Sign release builds with the same local key as debug builds so the app updates in place:
+    # a different key forces an uninstall, which deletes the game's saves on the phone.
+    $env:GODOT_ANDROID_KEYSTORE_RELEASE_PATH = "D:\Tools\Godot\editor_data\keystores\debug.keystore"
+    $env:GODOT_ANDROID_KEYSTORE_RELEASE_USER = "androiddebugkey"
+    $env:GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD = "android"
+}
 # --install-android-build-template only works together with an export; skip it once installed.
 $template = @()
 if (-not (Test-Path (Join-Path $shell "android\build\build.gradle"))) {

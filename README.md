@@ -42,6 +42,7 @@ Applied to a copy with Mono.Cecil; each one checks the code shape and fails loud
 | Patch | Why |
 |---|---|
 | ModelDb lazy init | Mono runs `beforefieldinit` static initialisers when an instance is created, CoreCLR only on first static field read. Models with static fields that call ModelDb (e.g. `BowlbugsNormal`) then ran mid-`ModelDb.Init` and crashed startup. `Get<T>` now creates missing models on demand. |
+| Save on pause | The game writes settings/prefs/progress/profile only in `NGame.Quit()` (window close). Android kills background apps without that, so in-memory changes were lost (the Early Access disclaimer reappeared every launch). `_Notification` now also flushes those saves on `NOTIFICATION_APPLICATION_PAUSED` (2015). |
 
 ## Known issues
 - Very short taps can be missed by some menu buttons (they react to a press that lasts a few frames).

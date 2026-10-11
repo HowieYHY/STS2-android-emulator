@@ -56,5 +56,5 @@ public interface IPatch
 
 public static class Patches
 {
-    public static readonly IPatch[] All = [new ModelDbLazyInitPatch()];
+    public static readonly IPatch[] All = [new ModelDbLazyInitPatch(), new SaveOnPausePatch()];
 }
