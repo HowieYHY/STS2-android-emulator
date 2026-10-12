@@ -50,6 +50,10 @@ foreach ($cmd in $Run) {
 if ($On) { Invoke-Adb shell touch $Flag | Out-Null; Write-Host "Full dev console flag set." }
 if ($Off) { Invoke-Adb shell rm -f $Flag | Out-Null; Write-Host "Full dev console flag removed." }
 if ($Restart) {
+    # Home first: the game only saves settings/progress on pause (Sts2Patcher "Save on pause"); force-stop alone
+    # kills it without pausing and in-memory changes (e.g. a dismissed pop-up) are lost.
+    Invoke-Adb shell input keyevent KEYCODE_HOME | Out-Null
+    Start-Sleep -Seconds 2
     Invoke-Adb shell am force-stop $Package | Out-Null
     Invoke-Adb shell am start -n "$Package/com.godot.game.GodotApp" | Out-Null
     Write-Host "Restarted the app; wait for the main menu (~16 s) before -Run."

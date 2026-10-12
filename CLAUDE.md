@@ -26,7 +26,8 @@ Plan: `C:\Users\Admin\.claude\plans\i-want-to-make-atomic-glacier.md` (riskiest 
   (like mobile StS1).
 
 - **Every** selection (anything where a tap commits a choice: rewards, shop cards/relics/potions, event picks)
-  gets tap = inspect + a confirm tick. Don't narrow this to a few screens.
+  gets tap = inspect + a confirm tick. Don't narrow this to a few screens. Exception (user): the treasure room
+  chest relic is taken on tap, no tick (there's only one relic, nothing to choose between).
 
 ## Testing on the phone (user's rule: use the dev console, don't play whole runs)
 - Get to the screen under test with the game's console instead of playing to it:

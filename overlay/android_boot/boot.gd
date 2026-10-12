@@ -34,8 +34,8 @@ var _touch_down_frame := 0
 var _last_mouse := Vector2.ZERO
 var _queue: Array = []  # [due process frame, InputEvent or Callable], in order
 
-## Picks: cards, relics and potions that are taken the moment they are clicked (rewards, choices, treasure, shop), so a
-## stray tap can't be undone. There a tap is a right click instead, which is the game's own inspect (card/relic
+## Picks: cards, relics, potions and event options that are taken the moment they are clicked (rewards, choices,
+## treasure, shop, events), so a stray tap can't be undone. There a tap is a right click instead, which is the game's own inspect (card/relic
 ## inspect screen, shop preview; otherwise the hover tooltip stays up), and the game's own confirm button slides in at
 ## its usual place on the right edge. The tick replays a real left click on the item, so the game takes it exactly as
 ## with a mouse. Screens that already have their own preview + confirm step (deck upgrade/remove/transform, bundles)
@@ -43,10 +43,10 @@ var _queue: Array = []  # [due process frame, InputEvent or Callable], in order
 const PICK_ITEMS := {
 	"NGridCardHolder.cs": ["NCardRewardSelectionScreen.cs", "NChooseACardSelectionScreen.cs"],
 	"NRelicBasicHolder.cs": ["NChooseARelicSelection.cs"],
-	"NTreasureRoomRelicHolder.cs": [],
 	"NMerchantCard.cs": [],
 	"NMerchantRelic.cs": [],
 	"NMerchantPotion.cs": [],
+	"NEventOptionButton.cs": [],  # event and Ancient choices (e.g. the next act's relic); hover shows their tooltip
 }
 const INSPECT_SCREENS := ["NInspectCardScreen.cs", "NInspectRelicScreen.cs"]
 const INSPECTION_CONTAINER := "/root/Game/InspectionContainer"
@@ -255,7 +255,8 @@ func _show_take(show: bool) -> void:
 		_take_layer.offset = Vector2(0, -_proceed_overlap())
 
 
-## Some pick screens (treasure) also show the game's Proceed/Skip arrow in the same corner as the confirm button.
+## Some screens also show the game's Proceed/Skip arrow in the same corner as the confirm button (seen in the treasure
+## room before it lost its tick; kept as a guard for any other screen that does the same).
 ## Returns how far to lift the tick so it sits just above any visible one. Only the vertical extent is compared:
 ## the tick slides in horizontally, so its x isn't final yet.
 func _proceed_overlap() -> float:
