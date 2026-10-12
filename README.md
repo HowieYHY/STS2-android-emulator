@@ -78,6 +78,17 @@ APK (this repo only)            phone: /sdcard/Android/data/com.howieyhy.sts2por
 Godot on Android loads C# assemblies from `res://.godot/mono/publish/arm64/` through its own file system,
 so they can live in a pack on the phone instead of inside the APK.
 
+## Android APK prerelease
+
+Download the signed arm64 APK from [v0.1.0-alpha.1](https://github.com/HowieYHY/STS2-android-emulator/releases/tag/v0.1.0-alpha.1).
+The release includes `sts2port-0.1.0-alpha.1-arm64.apk` and `SHA256SUMS`; its APK version is `0.1.0`
+(version code 1). Tested with **STS2 v0.111.0** (commit `41cef1ea`) on a Pixel 9a running Android 17.
+
+The APK contains the Android shell, runtime and plugins. Build the game packs from your own Steam copy
+using the source at the release tag and the setup below. To use the downloaded APK, pass its path to
+`push-game.ps1` with `-Apk`; rebuilding the APK is optional. Existing installations also need the rebuilt
+overlay to receive the aspect-ratio touch fix. The release notes include the exact commands.
+
 ## Usage
 
 ```powershell
