@@ -1,7 +1,8 @@
 extends Node
 ## First autoload of the port's overlay pack (inserted ahead of the game's own autoloads).
 ## 1. Mounts the user's SlayTheSpire2.pck, which sits next to overlay.pck on the phone, without letting
-##    it replace the overlay's files (the overlay carries the Android-specific config and assemblies).
+##    it replace the overlay's files (the overlay carries the Android-specific config and assemblies), then
+##    textures_astc.pck (phone-format copies of the game's desktop textures) over it.
 ## 2. Makes sure the game has a language saved, because the game's own fallback crashes on Android
 ##    locales with extensions (see _ensure_language). A brand-new settings file also gets the Auto aspect ratio.
 ## 3. Turns Android's Back into Escape (see _notification).
@@ -11,6 +12,14 @@ extends Node
 const SETTINGS_PATH := "user://default/1/settings.save"
 const SETTINGS_SCHEMA_VERSION := 8
 const DEV_CONSOLE_FLAG := "dev_console"
+const TEXTURES_PCK := "textures_astc.pck"
+## An empty file with this name next to the packs logs performance every PERF_LOG_SEC seconds (for testing).
+const PERF_LOG_FLAG := "perf_log"
+const PERF_LOG_SEC := 5.0
+var _perf_log := false
+var _perf_next := 0.0
+var _perf_frames := 0
+var _perf_worst_ms := 0.0
 
 ## The game's supported languages (LocManager._supportedLanguages), keyed by ISO 639-1 code.
 const LANGUAGES := {
@@ -35,9 +44,9 @@ var _last_mouse := Vector2.ZERO
 var _queue: Array = []  # [due process frame, InputEvent or Callable], in order
 
 ## Picks: cards, relics, potions and event options that are taken the moment they are clicked (rewards, choices,
-## treasure, shop, events), so a stray tap can't be undone. There a tap is a right click instead, which is the game's own inspect (card/relic
-## inspect screen, shop preview; otherwise the hover tooltip stays up), and the game's own confirm button slides in at
-## its usual place on the right edge. The tick replays a real left click on the item, so the game takes it exactly as
+## treasure, shop, events), so a stray tap can't be undone. There a tap is a right click instead, which is the
+## game's own inspect (card/relic inspect screen, shop preview; otherwise the hover tooltip stays up), and the game's
+## own confirm button slides in at its usual place on the right edge. The tick replays a real left click on the item, so the game takes it exactly as
 ## with a mouse. Screens that already have their own preview + confirm step (deck upgrade/remove/transform, bundles)
 ## keep tap = click. Matched by the C# script file of the item, and of its screen when the item type is shared.
 const PICK_ITEMS := {
@@ -68,8 +77,14 @@ func _init() -> void:
 		print("[sts2port] Mounted ", pck)
 	else:
 		push_error("[sts2port] Could not mount %s. Run scripts/push-game.ps1 on the PC." % pck)
+	# ASTC copies of the game's desktop-only textures (scripts/build_textures.py). Mounted after the game's pack with
+	# replace on, so its .import files (which add path.astc) win; without it the game still runs, just heavier.
+	var textures := _main_pack_dir().path_join(TEXTURES_PCK)
+	if FileAccess.file_exists(textures) and ProjectSettings.load_resource_pack(textures, true):
+		print("[sts2port] Mounted ", textures, " (astc supported: ", OS.has_feature("astc"), ")")
 	_ensure_language()
 	_sync_full_console(FileAccess.file_exists(_main_pack_dir().path_join(DEV_CONSOLE_FLAG)))
+	_perf_log = FileAccess.file_exists(_main_pack_dir().path_join(PERF_LOG_FLAG))
 
 
 ## Android's Back button/gesture arrives as NOTIFICATION_WM_GO_BACK_REQUEST (quit_on_go_back is turned off in the
@@ -127,6 +142,29 @@ func _process(_delta: float) -> void:
 			Input.parse_input_event(item)
 	if _pick_holder != null:
 		_update_pick()
+	if _perf_log:
+		_log_perf(_delta)
+
+
+## One line per PERF_LOG_SEC: average fps, worst frame, CPU process time, memory and video memory.
+func _log_perf(delta: float) -> void:
+	_perf_frames += 1
+	_perf_worst_ms = maxf(_perf_worst_ms, delta * 1000.0)
+	var now := Time.get_ticks_msec() / 1000.0
+	if now < _perf_next:
+		return
+	if _perf_next > 0.0:
+		print("[sts2port] perf fps=%.1f worst=%.0fms process=%.1fms mem=%dMB vram=%dMB tex=%dMB objects=%d draws=%d" % [
+			_perf_frames / PERF_LOG_SEC, _perf_worst_ms,
+			Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0,
+			OS.get_static_memory_usage() / 1048576,
+			Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576,
+			Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED) / 1048576,
+			Performance.get_monitor(Performance.OBJECT_COUNT),
+			Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)])
+	_perf_next = now + PERF_LOG_SEC
+	_perf_frames = 0
+	_perf_worst_ms = 0.0
 
 
 func _on_touch_down(pos: Vector2) -> void:

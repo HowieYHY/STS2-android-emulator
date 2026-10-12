@@ -1,0 +1,2 @@
+; Minimal project so the Godot editor can run transcode.gd headless (see scripts/build_textures.py).
+config_version=5
