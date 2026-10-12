@@ -11,11 +11,26 @@ restarts (Continue resumes the run) and the port's touch layer (tap, drag, long-
 plus a confirm button on pick screens) all work, through the Act 1 boss into Act 2. ASTC textures reduce memory use,
 and Android performance hints are enabled; combat frame-time spikes remain (see Known issues).
 
+## STS2 game version
+
+The current reference game is **v0.111.0**, commit `41cef1ea`, branch `v0.111.0`, verified on
+**13 October 2026** from `D:\Steam\steamapps\common\Slay the Spire 2\release_info.json`.
+This is the STS2 game version; the Android port's APK version is tracked separately below.
+
+Whenever work involves inspecting or patching game files, rebuilding or pushing the overlay/texture packs,
+testing the game, or updating compatibility documentation, re-read `release_info.json` from the actual
+`-GameDir` used. Update the current game version, commit, branch, source and verification date here and in
+`CLAUDE.md` in the same change. If the phone uses a different build, record its verified version separately.
+Keep the original version labels on historical findings and measurements; only mark a newer version as
+tested after checking it. If the version cannot be verified, say so and retain the last verified record.
+
 ## Latest device verification (13 October 2026)
 
-The **0.1.0 release build** (version code 1, arm64) is installed on the Pixel 9a. It appears in Android as
+The port's **0.1.0 release build** (version code 1, arm64) is installed on the Pixel 9a. It appears in Android as
 **Slay the Spire 2**, with original spire artwork for the legacy, adaptive and monochrome launcher icons.
 The artwork and its generator live in `shell/icons/` and `tools/icon/make_icon.py`.
+
+Game build used for these device checks: **STS2 v0.111.0**, commit `41cef1ea`.
 
 - Verified the Gradle `monoRelease` output and that the APK is not debuggable.
 - Verified the APK's v2 signature and 16 KB ZIP alignment. Release builds use the existing local debug key
@@ -30,8 +45,8 @@ The artwork and its generator live in `shell/icons/` and `tools/icon/make_icon.p
   before sending mouse events, so Godot applies scaling and letterbox offsets once. Installed the updated
   overlay and verified the dropdown at its visible position in Auto, 4:3, 16:10, 16:9 and 21:9 on the phone.
   Restored Auto and verified it stays selected after a cold restart. Headless regression checks cover taps,
-  drags, long presses, mouse-button state and queued
-  events during a transform change; the original code fails these checks and the fix passes.
+  drags, long presses, mouse-button state and queued events during a transform change; the original code
+  fails these checks and the fix passes.
 
 ## Android behaviour (tested on device)
 | Situation | Behaviour |

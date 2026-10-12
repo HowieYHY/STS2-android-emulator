@@ -10,6 +10,9 @@ Plan: `C:\Users\Admin\.claude\plans\i-want-to-make-atomic-glacier.md` (riskiest 
 - Anything that reads the game takes the game path as an argument and writes output **outside** the repo
   (scratchpad or a user-chosen folder).
 - Tell the user before each tool install and get confirmation; prefer winget.
+- **Always verify and update the actual STS2 game version in both README.md and CLAUDE.md when applicable**:
+  game-file inspection/patching, overlay or texture builds/pushes, game testing, and compatibility documentation.
+  Follow "Game version verification" below; the port's APK version and Godot version are separate.
 - Commit locally in small steps. **Do not push** unless asked.
 - When there's a choice, give a recommendation, not a list. Be honest about blockers.
 
@@ -46,8 +49,30 @@ Plan: `C:\Users\Admin\.claude\plans\i-want-to-make-atomic-glacier.md` (riskiest 
 - Logcat: poll with `adb logcat -d`; the game logs plays (`playing card X (targeting Y)`), rewards
   (`obtained CARD.X`), room loads, and the port logs `[sts2port] Pick: inspecting/taking <item>`.
 
-## Known facts about the game (v0.111.0)
-See README "Feasibility findings". Decompiled source lives only in the scratchpad (re-create with
+## Game version verification
+
+Current reference game: **v0.111.0**, commit `41cef1ea`, branch `v0.111.0`.
+Source: `D:\Steam\steamapps\common\Slay the Spire 2\release_info.json`; verified **13 October 2026**.
+Last phone-tested game build: **v0.111.0**, commit `41cef1ea`, on **13 October 2026**; the deployed overlay
+matches the pack rebuilt from the reference installation.
+
+- Re-read `<GameDir>/release_info.json` from the actual game installation used for applicable work; use its
+  `version`, `commit` and `branch` fields. Read the game folder only; never modify it or copy game files into the repo.
+- Update this record and README's "STS2 game version" section together, including the source and verification
+  date, before committing relevant work. Do not infer the game version from the APK's `version/name`, the Godot
+  engine version, file timestamps, or an old documentation heading.
+- When reporting phone compatibility, verify which game build its packs/assemblies came from using matching
+  deployment records, hashes or runtime metadata. A local Steam update does not establish the phone's version.
+  Record a different verified phone version separately; never claim an untested update is supported.
+- Preserve version labels on historical analysis and performance measurements. After a game update, re-check
+  relevant patch shape guards and behaviour before updating compatibility claims.
+- If release metadata is unavailable or inconsistent with the files under test, mark the current version as
+  unverified and retain the last verified version/source/date. Use runtime metadata or assembly inspection to
+  resolve it; never guess or silently carry an old version forward as current.
+
+## Known facts about the game
+See README "Feasibility findings" for the version-labelled analysis. Decompiled source lives only in the
+scratchpad (re-create with
 `ilspycmd -p -o <outside-repo> -r <game data dir> <game data dir>/sts2.dll`).
 
 ## Lessons learnt
