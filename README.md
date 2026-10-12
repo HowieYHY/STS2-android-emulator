@@ -6,9 +6,19 @@ you copy your own `SlayTheSpire2.pck` and `sts2.dll` from your Steam install to 
 `scripts/push-game.ps1`.
 
 Status: **playable on a Pixel 9a** (Android 17, Mali-G715): main menu, Spine animations, FMOD audio,
-character select, map, combat (drag a card onto an enemy plays it) and run auto-save all work with default
-touch-as-mouse. Not yet: long-press = right-click, inspect-on-tap selection screens, confirm button,
-save/load across restarts, texture/performance work.
+character select, map, combat (drag a card onto an enemy plays it), card rewards, settings and saving across
+restarts (Continue resumes the run) all work with default touch-as-mouse. Not yet: long-press = right-click,
+inspect-on-tap selection screens, confirm button, texture/performance work.
+
+## Android behaviour (tested on device)
+| Situation | Behaviour |
+|---|---|
+| Back button / gesture | Acts as Escape: opens the pause menu, a second Back closes it. The app never quits on Back (`quit_on_go_back = false` in the overlay). |
+| Home / app switch | Settings, prefs and progress are flushed on pause (Sts2Patcher "Save on pause"); runs auto-save as usual. Continue resumes after the app is killed. |
+| Rotation | Landscape and reverse landscape both work; touch stays aligned after a flip. |
+| Screen shape | New installs default to the **Auto** aspect ratio, which fills a 20:9 screen without stretching. An existing choice in Settings is never overridden. |
+| Network | The APK has no INTERNET permission: no metrics, crash reports or multiplayer leave the phone. |
+| Touch | Tap = click, drag = drag (cards onto enemies, map scrolling). Wait for the hand to settle between card plays, otherwise a tap can pick up the wrong card. |
 
 ## How it works
 

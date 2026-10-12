@@ -62,6 +62,9 @@ See README "Feasibility findings". Decompiled source lives only in the scratchpa
   `NOTIFICATION_APPLICATION_PAUSED`.
 - Release builds are signed with the same local debug key on purpose: changing the signing key forces an
   uninstall, which deletes the saves in the app's private storage.
+- Commit b7a3341's message claimed an Auto-aspect default and README notes that never landed: the scripted
+  edit failed ("pattern not found") and the commit went ahead in the same command. **Never chain a commit after
+  a scripted edit; check `git diff --stat` matches the message before committing.**
 - Verify a push by its effect (file timestamp on the phone), never by a filtered command's silence: a
   `push-game.ps1` call from Git Bash failed quietly and the phone kept the old overlay.
 

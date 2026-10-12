@@ -3,7 +3,8 @@ extends Node
 ## 1. Mounts the user's SlayTheSpire2.pck, which sits next to overlay.pck on the phone, without letting
 ##    it replace the overlay's files (the overlay carries the Android-specific config and assemblies).
 ## 2. Makes sure the game has a language saved, because the game's own fallback crashes on Android
-##    locales with extensions (see _ensure_language).
+##    locales with extensions (see _ensure_language). A brand-new settings file also gets the Auto aspect ratio.
+## 3. Turns Android's Back into Escape (see _notification).
 
 ## The game's settings file for the Null (non-Steam) platform: user://default/<local player id 1>/.
 const SETTINGS_PATH := "user://default/1/settings.save"
@@ -60,7 +61,9 @@ func _ensure_language() -> void:
 			return  # already has a language (or a format we don't recognise): leave it alone
 		text = re.sub(current, "\"language\": \"%s\"" % code)
 	else:
-		text = "{\n  \"schema_version\": %d,\n  \"language\": \"%s\"\n}\n" % [SETTINGS_SCHEMA_VERSION, code]
+		# First run: also default to the "Auto" aspect ratio, which fills a phone's wide screen without stretching
+		# (the game's default is 16:9 with black bars). Only for a brand-new file, never overriding a choice.
+		text = "{\n  \"schema_version\": %d,\n  \"language\": \"%s\",\n  \"aspect_ratio\": \"auto\"\n}\n" % [SETTINGS_SCHEMA_VERSION, code]
 		DirAccess.make_dir_recursive_absolute(SETTINGS_PATH.get_base_dir())
 	var f := FileAccess.open(SETTINGS_PATH, FileAccess.WRITE)
 	if f == null:
