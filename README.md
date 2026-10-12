@@ -25,6 +25,13 @@ The artwork and its generator live in `shell/icons/` and `tools/icon/make_icon.p
 - Reset Profile 1 through the game's profile deletion screen at the owner's request. Profiles 2 and 3 were
   already empty. Selected a fresh Profile 1 and confirmed after a cold restart that the menu offers
   Singleplayer with no Continue/Abandon Run options.
+- Fixed a touch offset after changing the aspect ratio: taps could miss the displayed controls and prevent
+  changing the ratio back. The touch layer now converts its viewport coordinates back to window coordinates
+  before sending mouse events, so Godot applies scaling and letterbox offsets once. Installed the updated
+  overlay and verified the dropdown at its visible position in Auto, 4:3, 16:10, 16:9 and 21:9 on the phone.
+  Restored Auto and verified it stays selected after a cold restart. Headless regression checks cover taps,
+  drags, long presses, mouse-button state and queued
+  events during a transform change; the original code fails these checks and the fix passes.
 
 ## Android behaviour (tested on device)
 | Situation | Behaviour |
@@ -32,7 +39,7 @@ The artwork and its generator live in `shell/icons/` and `tools/icon/make_icon.p
 | Back button / gesture | Acts as Escape: opens the pause menu, a second Back closes it. The app never quits on Back (`quit_on_go_back = false` in the overlay). |
 | Home / app switch | Settings, prefs and progress are flushed on pause (Sts2Patcher "Save on pause"); runs auto-save as usual. Continue resumes after the app is killed. |
 | Rotation | Sensor landscape: turns 180° between landscape and reverse landscape with the phone's auto-rotate (no portrait, by choice); touch stays aligned after a flip. The game never sets an orientation, so the overlay sets `display/window/handheld/orientation` = 4; without it Godot's default (fixed landscape) replaced the APK's. |
-| Screen shape | New installs default to the **Auto** aspect ratio, which fills a 20:9 screen without stretching. An existing choice in Settings is never overridden. |
+| Screen shape | New installs default to the **Auto** aspect ratio, which fills a 20:9 screen without stretching. An existing choice in Settings is never overridden. Changing aspect ratios keeps touch aligned, including black bars; tested the dropdown in Auto, 4:3, 16:10, 16:9 and 21:9. |
 | Settings | Tested on device: checkboxes, arrow selectors, sliders (drag), dropdowns, list scrolling (drag), Credits, Back closes screens. Fullscreen is forced and its tickbox hidden (Sts2Patcher "Fullscreen only"); windowed mode put the game under the system bars with touch misaligned. |
 | Network | The APK has no INTERNET permission: no metrics, crash reports or multiplayer leave the phone. |
 | Touch | Own touch layer in `boot.gd` (Godot's touch-to-mouse emulation is off). Tap = left click, held a few frames so quick taps register; drag = left drag (cards onto enemies, map scrolling); long-press (0.45 s, finger still) = right click, which opens the inspect screen for a card and never picks it up. Works in the pause menu too. Wait for the hand to settle between card plays, otherwise a tap can pick up the wrong card. |
@@ -68,6 +75,9 @@ powershell -ExecutionPolicy Bypass -File scripts\push-game.ps1 -GameDir "D:\Stea
 `textures_astc.pck`, and pushes all three packs. The 1.9 GB game pack is only re-sent when its size changes;
 the texture pack is only re-sent when its SHA-1 changes. For an APK-only update, rebuild and install the APK;
 the packs already on the phone can stay in place.
+
+Changes to `overlay/android_boot/boot.gd`, including the aspect-ratio touch fix, require running
+`push-game.ps1` again to rebuild and install `overlay.pck`; installing the APK alone does not update the overlay.
 
 ### Reset progress
 
@@ -178,6 +188,8 @@ performance measurements and remaining risks for the current state.
 The MSI build of the JDK ignores winget's `--location`, so use the portable zip to keep it on D:.
 
 ## Tools
+- `python -I scripts/test_touch.py` — parse-check the boot script and test touch coordinates in an isolated
+  headless Godot project, without game files or saves. `--godot <path>` overrides the default engine path.
 - `python -I tools/icon/make_icon.py` — regenerate the original launcher icon PNGs in `shell/icons/` (requires Pillow).
 - `scripts\dev-console.ps1 [-On|-Off] [-Restart] [-Run "cmd; cmd"]` — the game's dev console on the phone, for testing.
 - `python -I scripts/spikes/pck_list.py <pck> <outdir>` — list a pck's files and header (read-only).

@@ -151,7 +151,7 @@ func _process(_delta: float) -> void:
 		if item is Callable:
 			item.call()
 		else:
-			Input.parse_input_event(item)
+			_send_input(item)
 	if _pick_holder != null:
 		_update_pick()
 	if _perf_hint != null:
@@ -401,6 +401,19 @@ func _enqueue(event: Variant, due_frame: int) -> void:  # InputEvent, or Callabl
 
 func _frame() -> int:
 	return Engine.get_process_frames()
+
+
+## _input receives viewport coordinates, but Input.parse_input_event enters through the window and converts
+## them again. Undo that conversion before sending mouse events, including letterbox offsets and scaling.
+## Convert at delivery time so queued events use the current aspect ratio; keep Input's button state updated.
+func _send_input(event: InputEvent) -> void:
+	if event is InputEventMouse:
+		var window_event: InputEventMouse = event.xformed_by(get_viewport().get_final_transform())
+		# Mouse xformed_by transforms position/relative, but leaves global_position unchanged.
+		window_event.global_position = window_event.position
+		Input.parse_input_event(window_event)
+	else:
+		Input.parse_input_event(event)
 
 
 func _motion(pos: Vector2, mask: int) -> InputEventMouseMotion:
