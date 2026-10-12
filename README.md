@@ -15,7 +15,7 @@ plus a confirm button on pick screens) all work, through the Act 1 boss into Act
 |---|---|
 | Back button / gesture | Acts as Escape: opens the pause menu, a second Back closes it. The app never quits on Back (`quit_on_go_back = false` in the overlay). |
 | Home / app switch | Settings, prefs and progress are flushed on pause (Sts2Patcher "Save on pause"); runs auto-save as usual. Continue resumes after the app is killed. |
-| Rotation | Sensor landscape: turns 180° between landscape and reverse landscape (no portrait, by choice); touch stays aligned after a flip. |
+| Rotation | Sensor landscape: turns 180° between landscape and reverse landscape with the phone's auto-rotate (no portrait, by choice); touch stays aligned after a flip. The game never sets an orientation, so the overlay sets `display/window/handheld/orientation` = 4; without it Godot's default (fixed landscape) replaced the APK's. |
 | Screen shape | New installs default to the **Auto** aspect ratio, which fills a 20:9 screen without stretching. An existing choice in Settings is never overridden. |
 | Settings | Tested on device: checkboxes, arrow selectors, sliders (drag), dropdowns, list scrolling (drag), Credits, Back closes screens. Fullscreen is forced and its tickbox hidden (Sts2Patcher "Fullscreen only"); windowed mode put the game under the system bars with touch misaligned. |
 | Network | The APK has no INTERNET permission: no metrics, crash reports or multiplayer leave the phone. |

@@ -46,6 +46,9 @@ BOOT_AUTOLOAD = ("autoload/AndroidBoot", "*res://android_boot/boot.gd")
 EXTRA_SETTINGS = {
     "application/config/quit_on_go_back": pcklib.variant_bool(False),
     "display/window/frame_pacing/android/enable_frame_pacing": pcklib.variant_bool(False),
+    # The game never sets an orientation, so Godot's default (fixed landscape) replaced the APK's and the screen
+    # wouldn't turn 180°. 4 = SCREEN_SENSOR_LANDSCAPE: both landscape directions, following the phone's auto-rotate.
+    "display/window/handheld/orientation": pcklib.variant_int(4),
 }
 PATCHER_PROJECT = os.path.join(REPO, "tools", "Sts2Patcher", "Sts2Patcher.csproj")
 PATCHER_DLL = os.path.join(REPO, "tools", "Sts2Patcher", "bin", "Release", "net9.0", "Sts2Patcher.dll")

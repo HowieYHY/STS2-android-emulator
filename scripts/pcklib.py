@@ -120,3 +120,8 @@ def variant_bool(value: bool) -> bytes:
     """Encode a Godot Variant BOOL (type 1)."""
     return struct.pack("<II", 1, 1 if value else 0)
 
+
+def variant_int(value: int) -> bytes:
+    """Encode a Godot Variant INT (type 2) as 32-bit (Godot only sets the 64-bit flag for values that need it)."""
+    return struct.pack("<Ii", 2, value)
+

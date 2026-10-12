@@ -136,6 +136,10 @@ See README "Feasibility findings". Decompiled source lives only in the scratchpa
   Godot's published Android debug symbols are for the standard template only (build ID differs from the .NET one).
 - Check `dumpsys thermalservice` before trusting absolute timings: after an hour of testing on the charger the
   phone was at thermal status 1 with CPUs at 63-67 °C. Compare before/after in the same thermal state.
+- The APK's project.godot settings don't apply in game: the overlay runs the game's project.binary. The APK said
+  sensor landscape, the game said nothing, so Godot's fixed-landscape default won and the screen never turned 180°
+  (README even claimed it did, from the APK manifest alone). Check the running activity
+  (`dumpsys activity activities | grep requestedOrientation`), and set such settings in build_overlay EXTRA_SETTINGS.
 - Verify a push by its effect (file timestamp on the phone), never by a filtered command's silence: a
   `push-game.ps1` call from Git Bash failed quietly and the phone kept the old overlay.
 
