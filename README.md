@@ -15,7 +15,7 @@ plus a confirm button on pick screens) all work, through the Act 1 boss into Act
 |---|---|
 | Back button / gesture | Acts as Escape: opens the pause menu, a second Back closes it. The app never quits on Back (`quit_on_go_back = false` in the overlay). |
 | Home / app switch | Settings, prefs and progress are flushed on pause (Sts2Patcher "Save on pause"); runs auto-save as usual. Continue resumes after the app is killed. |
-| Rotation | Landscape and reverse landscape both work; touch stays aligned after a flip. |
+| Rotation | Sensor landscape: turns 180° between landscape and reverse landscape (no portrait, by choice); touch stays aligned after a flip. |
 | Screen shape | New installs default to the **Auto** aspect ratio, which fills a 20:9 screen without stretching. An existing choice in Settings is never overridden. |
 | Settings | Tested on device: checkboxes, arrow selectors, sliders (drag), dropdowns, list scrolling (drag), Credits, Back closes screens. Fullscreen is forced and its tickbox hidden (Sts2Patcher "Fullscreen only"); windowed mode put the game under the system bars with touch misaligned. |
 | Network | The APK has no INTERNET permission: no metrics, crash reports or multiplayer leave the phone. |
@@ -58,6 +58,7 @@ Applied to a copy with Mono.Cecil; each one checks the code shape and fails loud
 | ModelDb lazy init | Mono runs `beforefieldinit` static initialisers when an instance is created, CoreCLR only on first static field read. Models with static fields that call ModelDb (e.g. `BowlbugsNormal`) then ran mid-`ModelDb.Init` and crashed startup. `Get<T>` now creates missing models on demand. |
 | Save on pause | The game writes settings/prefs/progress/profile only in `NGame.Quit()` (window close). Android kills background apps without that, so in-memory changes were lost (the Early Access disclaimer reappeared every launch). `_Notification` now also flushes those saves on `NOTIFICATION_APPLICATION_PAUSED` (2015). |
 
+| Intro logo tickbox | `NIntroLogoTickbox._Ready` never called `SetFromSettings()` (the game's other tickboxes do), so "Skip Intro Logo" always looked ticked while the logo still played. It now shows the saved value; the setting itself is untouched. |
 | Fullscreen only | The Null platform reported `SupportedWindowMode.Any`; unticking Fullscreen on a phone left the game windowed under the system bars with touch offset (taps hit the wrong control, so it couldn't be ticked again). `NullPlatformUtilStrategy.GetSupportedWindowMode()` now returns `FullscreenOnly`, the game's own console mode: fullscreen is forced and the tickbox hidden. |
 
 ## Known issues
@@ -72,8 +73,28 @@ Applied to a copy with Mono.Cecil; each one checks the code shape and fails loud
 - Debug builds use FMOD's logging libraries; time to main menu is ~19 s (10 s without FMOD).
 - `release_info.json` is only looked for next to the executable, which is read-only on Android: the version
   check for mods is skipped (harmless).
-- 1,244 BC textures are decompressed on the CPU (Mali has no BC): first "Common" preload takes ~40 s in the
-  background and VRAM reaches ~500 MB at the main menu.
+- Combat: while cards animate, frames drop to 50-140 ms (about 38 fps on average over those seconds; 60 fps when
+  idle). Measured: GPU 11-14 ms and render setup ~2 ms per frame, so the time goes to main-thread work in the
+  game's C# on Mono (suspects: Mono GC pauses, first-use asset loads such as `vulnerable_power.png`). The first
+  use of an effect in a session costs two extra ~140 ms frames. Not fixed yet; needs a C# probe to go further.
+- Startup ~16 s to the menu, 9.6 s of it the Mega Crit intro logo ("Skip Intro Logo" in Settings, off by choice).
+
+## Performance (Pixel 9a, same scene before/after the ASTC texture pack)
+| | Before | With `textures_astc.pck` |
+|---|---|---|
+| Textures converted on the CPU at load | 161 at boot, more on first use (each a hitch) | 0 |
+| Video memory at the menu (after background loading) | 1,164 MB (textures 899 MB) | 679 MB (textures 415 MB) |
+| App memory (PSS) in a run | 2.12 GB (graphics 1.52 GB) | 1.61 GB (graphics 1.00 GB) |
+| Phone memory still available | ~0.43 GB | ~1.3 GB |
+| Combat fps / spikes | ~38 fps animating, ~146 ms spikes | unchanged (not texture-bound, see Known issues) |
+
+How it works: `scripts/build_textures.py` converts the 1,244 BC1/BC3/BC7 textures to ASTC 4x4 with
+`tools/astc/transcode.gd` (Godot headless; padded to whole blocks and stored at the original size, because
+Godot's encoder stretches odd sizes, which would shift atlas sprites), 57-63 dB PSNR against the originals, 94 s,
+cached by content hash. Each texture's `.import` gets a `path.astc=` line, so Godot picks ASTC on phones that
+support it. The 885 MB pack is pushed only when its SHA-1 changes; the game runs without it, just heavier.
+Measure with an empty `perf_log` file next to the packs: boot.gd then logs fps/memory every 5 s and every frame
+over 50 ms with its CPU/GPU split.
 
 
 ## Feasibility findings (game v0.111.0, Godot 4.5.1 .NET)
@@ -86,7 +107,7 @@ Applied to a copy with Mono.Cecil; each one checks the code shape and fails loud
 | Is the `.pck` encrypted? | No. Pack format v3, flags `0x2` (relative file base only), 0 of 15,890 files encrypted. | Stock Godot can mount it. |
 | Custom engine? | Exe says `4.5.1.m.14.mono.custom_build`, but its module list matches stock 4.5, every scene type is stock 4.5 (plus Spine/FMOD GDExtensions), and the shipped `GodotSharp.dll` is **byte-identical** to NuGet GodotSharp 4.5.1. | Stock Godot 4.5.1 .NET templates should run it. Any private C++ fixes the studio made are lost (unknown, probably minor). |
 | Renderer | Project features include `Mobile`; ETC2/ASTC import is enabled. | Good fit for phones. |
-| Textures | 1,244 textures are desktop BC formats (S3TC/BPTC, ~1.2 GB); no ASTC/ETC2 copies. | GPUs without BC support make Godot decompress them on the CPU: works, but costs RAM and load time. Optional later fix: transcode to ASTC on the PC into an overlay pack. |
+| Textures | 1,244 textures are desktop BC formats (S3TC/BPTC, ~0.9 GB); no ASTC/ETC2 copies. Another 2,284 are WebP (decoded to RGBA8 on every platform). | Done: `textures_astc.pck` (see Performance). |
 | FMOD | utopia-rise `fmod-gdextension`, FMOD **2.03.06**; its `.gdextension` already lists Android arm64 paths. Banks are `banks/desktop` (platform-neutral format). | Needs the addon built for Android + FMOD 2.03.06 Android libs (free FMOD account download). |
 | Spine | Official `spine_godot` GDExtension, skeleton data **4.2** (editor 4.2.03); `.gdextension` lists Android arm64 paths. | Use spine-godot 4.2 built for Godot 4.5 / Android arm64. |
 | Steam | Behind a platform layer with a `Null` implementation. The game has a launch flag **`--force-steam off`** that skips Steam and runs on the Null platform (local saves, no cloud/achievements/leaderboards). | Pass `--force-steam off` via the export's command-line args. Steamworks.NET is still referenced, so its `steam_api` P/Invokes must never be hit (they aren't on the Null path). |

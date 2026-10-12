@@ -16,6 +16,7 @@ const TEXTURES_PCK := "textures_astc.pck"
 ## An empty file with this name next to the packs logs performance every PERF_LOG_SEC seconds (for testing).
 const PERF_LOG_FLAG := "perf_log"
 const PERF_LOG_SEC := 5.0
+const PERF_SPIKE_SEC := 0.05  # frames slower than this are logged one by one
 var _perf_log := false
 var _perf_next := 0.0
 var _perf_frames := 0
@@ -87,6 +88,11 @@ func _init() -> void:
 	_perf_log = FileAccess.file_exists(_main_pack_dir().path_join(PERF_LOG_FLAG))
 
 
+func _ready() -> void:
+	if _perf_log:
+		RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
+
+
 ## Android's Back button/gesture arrives as NOTIFICATION_WM_GO_BACK_REQUEST (quit_on_go_back is turned off in the
 ## overlay's project settings). Turn it into Escape, which is the game's own back/pause key on PC.
 func _notification(what: int) -> void:
@@ -150,6 +156,13 @@ func _process(_delta: float) -> void:
 func _log_perf(delta: float) -> void:
 	_perf_frames += 1
 	_perf_worst_ms = maxf(_perf_worst_ms, delta * 1000.0)
+	if delta > PERF_SPIKE_SEC:
+		var vp := get_viewport().get_viewport_rid()
+		print("[sts2port] spike %.0fms (process %.0fms, render cpu %.1fms gpu %.1fms, draws %d)" % [delta * 1000.0,
+			Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0,
+			RenderingServer.viewport_get_measured_render_time_cpu(vp) + RenderingServer.get_frame_setup_time_cpu(),
+			RenderingServer.viewport_get_measured_render_time_gpu(vp),
+			Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)])
 	var now := Time.get_ticks_msec() / 1000.0
 	if now < _perf_next:
 		return

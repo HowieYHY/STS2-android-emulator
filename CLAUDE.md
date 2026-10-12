@@ -119,6 +119,15 @@ See README "Feasibility findings". Decompiled source lives only in the scratchpa
   changes are lost (the Early Access pop-up came back).
 - A tap and a drag shorter than the slop (~22 px) are the same thing: tiny slider nudges are taps. Use a two-step
   drag (away, then back to the exact spot).
+- Godot's ASTC encoder (`Image.compress`) **stretches** images whose size isn't a multiple of 4 (5377 -> 5380 wide).
+  A PSNR of 9.6 dB exposed it; atlas sprites would have shifted. Pad to whole blocks yourself and keep the original
+  size in the .ctex. Always check a converter's output numerically (PSNR per texture), not by eye on one sample.
+- GST2 (.ctex) layout: 36-byte header, then u32 data format, u16 w, u16 h, u32 mipmaps, u32 Image::Format, data.
+  Two scripts were written with the offsets 4 bytes off; read a known file's fields back before trusting a parser.
+- A suspected cause must be confirmed by A/B before keeping the fix: the Vulkan pipeline-cache chunk setting
+  changed nothing measurable (first-use spikes stayed), so it was reverted instead of shipped.
+- Measure GPU vs CPU before guessing at rendering fixes: `RenderingServer.viewport_set_measure_render_time` +
+  `viewport_get_measured_render_time_gpu` (perf_log does this). Combat: GPU 11-14 ms, so it isn't fill/draws.
 - Verify a push by its effect (file timestamp on the phone), never by a filtered command's silence: a
   `push-game.ps1` call from Git Bash failed quietly and the phone kept the old overlay.
 
