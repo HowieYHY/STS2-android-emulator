@@ -75,6 +75,9 @@ See README "Feasibility findings". Decompiled source lives only in the scratchpa
   Poll `adb logcat -d` instead; if adb loses the phone, `adb kill-server` before asking the user to replug.
 - Godot's built-in Android long-press (`enable_long_press_as_right_click`) cancels the touch first, which Godot
   turns into a left *release*, and the game's card holders pick the card on that release. Hence our own layer.
+- A GDScript type error in `boot.gd` only shows on the phone as "autoload does not inherit from Node" and a black
+  screen (the pck never mounts). **Parse-check before pushing**: copy it into a scratch project with
+  `config_version=5` and run `Godot_v4.5.1-stable_mono_win64_console.exe --headless --path . --check-only --script boot.gd`.
 - Verify a push by its effect (file timestamp on the phone), never by a filtered command's silence: a
   `push-game.ps1` call from Git Bash failed quietly and the phone kept the old overlay.
 

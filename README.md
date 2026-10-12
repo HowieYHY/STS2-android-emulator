@@ -7,8 +7,8 @@ you copy your own `SlayTheSpire2.pck` and `sts2.dll` from your Steam install to 
 
 Status: **playable on a Pixel 9a** (Android 17, Mali-G715): main menu, Spine animations, FMOD audio,
 character select, map, combat (drag a card onto an enemy plays it), card rewards, settings and saving across
-restarts (Continue resumes the run) and the port's touch layer (tap, drag, long-press = inspect) all work. Not
-yet: inspect-on-tap selection screens with a confirm button, texture/performance work.
+restarts (Continue resumes the run) and the port's touch layer (tap, drag, long-press = inspect, tap-to-inspect
+plus a confirm button on pick screens) all work. Not yet: texture/performance work.
 
 ## Android behaviour (tested on device)
 | Situation | Behaviour |
@@ -19,6 +19,7 @@ yet: inspect-on-tap selection screens with a confirm button, texture/performance
 | Screen shape | New installs default to the **Auto** aspect ratio, which fills a 20:9 screen without stretching. An existing choice in Settings is never overridden. |
 | Network | The APK has no INTERNET permission: no metrics, crash reports or multiplayer leave the phone. |
 | Touch | Own touch layer in `boot.gd` (Godot's touch-to-mouse emulation is off). Tap = left click, held a few frames so quick taps register; drag = left drag (cards onto enemies, map scrolling); long-press (0.45 s, finger still) = right click, which opens the inspect screen for a card and never picks it up. Works in the pause menu too. Wait for the hand to settle between card plays, otherwise a tap can pick up the wrong card. |
+| Pick screens | On screens that take a card or relic the moment it's clicked (card reward, choose-a-card, choose-a-relic) a tap inspects instead: cards open the game's inspect screen, relics show their tooltip. The game's own confirm (tick) button then slides in at the right edge and takes it; Back or tapping elsewhere cancels. Screens with their own preview + confirm step (deck upgrade/transform/enchant, bundles) keep tap = click. |
 | Frame pacing | Swappy is turned off in the overlay: with it on, about one launch in three froze before the first frame. |
 
 ## How it works
