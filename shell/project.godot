@@ -4,7 +4,8 @@
 config_version=5
 
 [application]
-config/name="STS2 Port"
+config/name="Slay the Spire 2"
+config/icon="res://icons/icon_192.png"
 run/main_scene="res://main.tscn"
 config/features=PackedStringArray("4.5", "C#", "Mobile")
 
