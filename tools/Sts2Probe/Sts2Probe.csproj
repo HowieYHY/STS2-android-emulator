@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Opt-in frame/GC probe loaded next to the game's sts2.dll (see Probe.cs). Compiled against GodotSharp 4.5.1,
+       which the game ships byte-identical; the game's own copy is used at runtime. -->
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="GodotSharp" Version="4.5.1" ExcludeAssets="runtime" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

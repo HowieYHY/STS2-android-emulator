@@ -128,6 +128,14 @@ See README "Feasibility findings". Decompiled source lives only in the scratchpa
   changed nothing measurable (first-use spikes stayed), so it was reverted instead of shipped.
 - Measure GPU vs CPU before guessing at rendering fixes: `RenderingServer.viewport_set_measure_render_time` +
   `viewport_get_measured_render_time_gpu` (perf_log does this). Combat: GPU 11-14 ms, so it isn't fill/draws.
+- Mono's `RuntimeHelpers.PrepareMethod` compiles nothing (50k methods "done" in 0.3 s, JitInfo unchanged);
+  `MethodHandle.GetFunctionPointer()` really JITs. Check a warm-up/cache trick with a counter, not by its speed.
+- Removing a measured cost doesn't prove it was the bottleneck: JIT warm-up removed the 30-55 ms of JIT from the
+  slow frames, yet they stayed 120-145 ms. Judge a fix by frame times, not by the counter it targets.
+- simpleperf on a profileable (non-debuggable) app needs `--app <package>`; `-p <pid>` gets "Permission denied".
+  Godot's published Android debug symbols are for the standard template only (build ID differs from the .NET one).
+- Check `dumpsys thermalservice` before trusting absolute timings: after an hour of testing on the charger the
+  phone was at thermal status 1 with CPUs at 63-67 °C. Compare before/after in the same thermal state.
 - Verify a push by its effect (file timestamp on the phone), never by a filtered command's silence: a
   `push-game.ps1` call from Git Bash failed quietly and the phone kept the old overlay.
 

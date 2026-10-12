@@ -49,13 +49,18 @@ EXTRA_SETTINGS = {
 }
 PATCHER_PROJECT = os.path.join(REPO, "tools", "Sts2Patcher", "Sts2Patcher.csproj")
 PATCHER_DLL = os.path.join(REPO, "tools", "Sts2Patcher", "bin", "Release", "net9.0", "Sts2Patcher.dll")
+PROBE_PROJECT = os.path.join(REPO, "tools", "Sts2Probe", "Sts2Probe.csproj")
+PROBE_DLL = os.path.join(REPO, "tools", "Sts2Probe", "bin", "Release", "net9.0", "Sts2Probe.dll")
 
 
 def patch_sts2(data_dir: str, out_dir: str) -> str:
-    """Run tools/Sts2Patcher on the game's sts2.dll; returns the patched copy's path (in out_dir)."""
-    subprocess.run(["dotnet", "build", PATCHER_PROJECT, "-c", "Release", "-v", "q", "-nologo"], check=True)
+    """Run tools/Sts2Patcher on the game's sts2.dll; returns the patched copy's path (in out_dir).
+    Also builds tools/Sts2Probe, whose Install() call the patcher adds (inert unless perf_log is on the phone)."""
+    for project in (PATCHER_PROJECT, PROBE_PROJECT):
+        subprocess.run(["dotnet", "build", project, "-c", "Release", "-v", "q", "-nologo"], check=True)
     patched = os.path.join(out_dir, "patched", "sts2.dll")
-    subprocess.run(["dotnet", PATCHER_DLL, os.path.join(data_dir, "sts2.dll"), data_dir, patched], check=True)
+    subprocess.run(["dotnet", PATCHER_DLL, os.path.join(data_dir, "sts2.dll"), data_dir, patched, PROBE_DLL],
+                   check=True)
     return patched
 
 
@@ -100,7 +105,9 @@ def main():
         src = patched_sts2 if name == "sts2.dll" else os.path.join(data_dir, name)
         with open(src, "rb") as f:
             files[PUBLISH + name] = f.read()
-    known = {n.lower() for n in GAME_ASSEMBLIES} | {"godotsharp.dll"}
+    with open(PROBE_DLL, "rb") as f:
+        files[PUBLISH + "Sts2Probe.dll"] = f.read()
+    known ={n.lower() for n in GAME_ASSEMBLIES} | {"godotsharp.dll"}
     for name in sorted(os.listdir(data_dir)):
         low = name.lower()
         if not low.endswith(".dll") or low in known or low.startswith(("system.", "microsoft.")) \

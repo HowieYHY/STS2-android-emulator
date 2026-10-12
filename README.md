@@ -73,10 +73,17 @@ Applied to a copy with Mono.Cecil; each one checks the code shape and fails loud
 - Debug builds use FMOD's logging libraries; time to main menu is ~19 s (10 s without FMOD).
 - `release_info.json` is only looked for next to the executable, which is read-only on Android: the version
   check for mods is skipped (harmless).
-- Combat: while cards animate, frames drop to 50-140 ms (about 38 fps on average over those seconds; 60 fps when
-  idle). Measured: GPU 11-14 ms and render setup ~2 ms per frame, so the time goes to main-thread work in the
-  game's C# on Mono (suspects: Mono GC pauses, first-use asset loads such as `vulnerable_power.png`). The first
-  use of an effect in a session costs two extra ~140 ms frames. Not fixed yet; needs a C# probe to go further.
+- Combat: while cards animate, frames drop to 50-75 ms (about 38 fps on average over those seconds; 60 fps when
+  idle), and the first use of an effect in a session adds two ~140 ms frames. What's been measured (Pixel 9a,
+  warm phone, thermal status "light"):
+  - GPU 11-14 ms and render setup ~2 ms per frame: not a rendering problem.
+  - Mono GC: no collections during any slow frame (Sts2Probe).
+  - Mono JIT: 30-55 ms of the first-use frames is compiling the game's C# on first use (JitInfo). A background
+    pre-compile of all 50k methods (`jit_warmup` flag) removed that JIT time but the slow frames stayed at
+    120-145 ms, at a cost of ~36 s of CPU per launch and +110 MB, so it's off (experiment kept behind the flag).
+  - Main thread CPU: ~70% busy, in Godot (39%), libc locks/allocator (19%) and Mono runtime (16%), running on
+    the mid cores mostly at 650-1,300 MHz of 2,600. Godot's published Android symbols don't match the .NET
+    template we use, so the hot functions can't be named without building that template with symbols.
 - Startup ~16 s to the menu, 9.6 s of it the Mega Crit intro logo ("Skip Intro Logo" in Settings, off by choice).
 
 ## Performance (Pixel 9a, same scene before/after the ASTC texture pack)
@@ -94,7 +101,9 @@ Godot's encoder stretches odd sizes, which would shift atlas sprites), 57-63 dB 
 cached by content hash. Each texture's `.import` gets a `path.astc=` line, so Godot picks ASTC on phones that
 support it. The 885 MB pack is pushed only when its SHA-1 changes; the game runs without it, just heavier.
 Measure with an empty `perf_log` file next to the packs: boot.gd then logs fps/memory every 5 s and every frame
-over 50 ms with its CPU/GPU split.
+over 50 ms with its CPU/GPU split, and `tools/Sts2Probe` (called from NGame._Ready by Sts2Patcher; inert without
+the flag) logs the GC and JIT activity in each slow frame. CPU profiling works with
+`adb shell simpleperf record --app com.howieyhy.sts2port ...` (the APK is profileable).
 
 
 ## Feasibility findings (game v0.111.0, Godot 4.5.1 .NET)
