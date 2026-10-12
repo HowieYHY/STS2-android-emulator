@@ -10,6 +10,7 @@ extends Node
 ## The game's settings file for the Null (non-Steam) platform: user://default/<local player id 1>/.
 const SETTINGS_PATH := "user://default/1/settings.save"
 const SETTINGS_SCHEMA_VERSION := 8
+const DEV_CONSOLE_FLAG := "dev_console"
 
 ## The game's supported languages (LocManager._supportedLanguages), keyed by ISO 639-1 code.
 const LANGUAGES := {
@@ -33,21 +34,27 @@ var _touch_down_frame := 0
 var _last_mouse := Vector2.ZERO
 var _queue: Array = []  # [due process frame, InputEvent or Callable], in order
 
-## Pick screens: screens that take a card or relic the moment it is clicked, so a stray tap can't be undone. There a
-## tap inspects instead (right click for cards, hover tooltip for relics) and the game's own confirm button, at its
-## usual place on the right edge, takes the item. Screens with their own preview + confirm step (deck upgrade,
-## transform, bundles...) keep tap = click. Matched by the C# script file of the screen and of the item holder.
-const PICK_SCREENS := {
-	"NCardRewardSelectionScreen.cs": "NGridCardHolder.cs",
-	"NChooseACardSelectionScreen.cs": "NGridCardHolder.cs",
-	"NChooseARelicSelection.cs": "NRelicBasicHolder.cs",
+## Picks: cards, relics and potions that are taken the moment they are clicked (rewards, choices, treasure, shop), so a
+## stray tap can't be undone. There a tap is a right click instead, which is the game's own inspect (card/relic
+## inspect screen, shop preview; otherwise the hover tooltip stays up), and the game's own confirm button slides in at
+## its usual place on the right edge. The tick replays a real left click on the item, so the game takes it exactly as
+## with a mouse. Screens that already have their own preview + confirm step (deck upgrade/remove/transform, bundles)
+## keep tap = click. Matched by the C# script file of the item, and of its screen when the item type is shared.
+const PICK_ITEMS := {
+	"NGridCardHolder.cs": ["NCardRewardSelectionScreen.cs", "NChooseACardSelectionScreen.cs"],
+	"NRelicBasicHolder.cs": ["NChooseARelicSelection.cs"],
+	"NTreasureRoomRelicHolder.cs": [],
+	"NMerchantCard.cs": [],
+	"NMerchantRelic.cs": [],
+	"NMerchantPotion.cs": [],
 }
+const INSPECT_SCREENS := ["NInspectCardScreen.cs", "NInspectRelicScreen.cs"]
+const INSPECTION_CONTAINER := "/root/Game/InspectionContainer"
 const CONFIRM_BUTTON_SCENE := "res://scenes/ui/confirm_button.tscn"
-const INSPECT_WAIT_FRAMES := 30  # how long to wait for the inspect screen to open after the right click
+const TAKE_WAIT_FRAMES := 120  # longest wait for a closing inspect screen to hide before clicking the item anyway
 var _pick_holder: Control = null
-var _pick_is_card := false
-var _pick_wait := 0  # frames left to wait for the inspect screen; 0 once it is open
-var _inspect_screen: Control = null
+var _pick_pos := Vector2.ZERO
+var _inspect_was_open := false
 var _take_layer: CanvasLayer = null
 var _take_button: Control = null
 
@@ -61,6 +68,7 @@ func _init() -> void:
 	else:
 		push_error("[sts2port] Could not mount %s. Run scripts/push-game.ps1 on the PC." % pck)
 	_ensure_language()
+	_sync_full_console(FileAccess.file_exists(_main_pack_dir().path_join(DEV_CONSOLE_FLAG)))
 
 
 ## Android's Back button/gesture arrives as NOTIFICATION_WM_GO_BACK_REQUEST (quit_on_go_back is turned off in the
@@ -164,59 +172,70 @@ func _tap(pos: Vector2) -> void:
 	var hovered := get_viewport().gui_get_hovered_control()
 	var holder := _pick_target(hovered)
 	if holder == null:
-		# Taps on the take button or inside the open inspect screen keep the pick; _update_pick notices when the
+		# Taps on the take button or inside an open inspect screen keep the pick; _update_pick notices when the
 		# inspect screen closes. Any other tap drops it.
-		if not (_within(hovered, _take_button) or _within(hovered, _inspect_screen)):
+		var keep := _within(hovered, _take_button)
+		for screen in _inspect_screens():
+			keep = keep or _within(hovered, screen)
+		if not keep:
 			_clear_pick()
 		_click(MOUSE_BUTTON_LEFT, pos)
 		return
 	_clear_pick()
 	_pick_holder = holder
-	_pick_is_card = _script_file(holder) == "NGridCardHolder.cs"
-	if _pick_is_card:
-		_pick_wait = INSPECT_WAIT_FRAMES
-		_click(MOUSE_BUTTON_RIGHT, pos)  # the game opens its inspect screen for this card
-	else:
-		_pick_wait = 0
-		_show_take(true)  # relics: the hover the tap already caused shows the relic's tooltip
-	print("[sts2port] Pick screen: inspecting ", holder.name)
+	_pick_pos = pos
+	_inspect_was_open = false
+	_click(MOUSE_BUTTON_RIGHT, pos)  # the game's own inspect for this item
+	_show_take(true)
+	print("[sts2port] Pick: inspecting ", holder.name)
 
 
-## The item holder under the finger, if it belongs to a pick screen.
+## The pickable item under the finger, if any (see PICK_ITEMS).
 func _pick_target(control: Control) -> Control:
 	var holder: Control = null
 	var node: Node = control
 	while node != null:
 		var file := _script_file(node)
-		if holder == null and file in PICK_SCREENS.values():
+		if holder == null and PICK_ITEMS.has(file):
 			holder = node as Control
-		elif holder != null and PICK_SCREENS.get(file, "") == _script_file(holder):
+			if PICK_ITEMS[file].is_empty():
+				return holder
+		elif holder != null and file in PICK_ITEMS[_script_file(holder)]:
 			return holder
 		node = node.get_parent()
+	return null
+
+
+## The game's inspect screens. It creates them on first use, under this container, so look them up each time.
+func _inspect_screens() -> Array:
+	var found := []
+	var container := get_node_or_null(INSPECTION_CONTAINER)
+	if container != null:
+		for child in container.get_children():
+			if _script_file(child) in INSPECT_SCREENS:
+				found.append(child)
+	return found
+
+
+func _inspect_open() -> Control:
+	for screen in _inspect_screens():
+		if screen.visible:
+			return screen
 	return null
 
 
 func _update_pick() -> void:
 	if not is_instance_valid(_pick_holder) or not _pick_holder.is_inside_tree() or not _pick_holder.is_visible_in_tree():
 		_clear_pick()
-	elif _pick_is_card:
-		if _inspect_screen == null:
-			_inspect_screen = _find_by_script(get_tree().root, "NInspectCardScreen.cs")
-		var open := _inspect_screen != null and _inspect_screen.visible
-		if _pick_wait > 0:
-			_pick_wait -= 1
-			if open:
-				_pick_wait = 0
-				_show_take(true)
-			elif _pick_wait == 0:
-				_clear_pick()  # the game didn't open the inspect screen (e.g. the pick is already made)
-		elif not open:
-			_clear_pick()  # closed with Back or by tapping outside the card
+		return
+	var open := _inspect_open() != null
+	if _inspect_was_open and not open:
+		_clear_pick()  # inspect screen closed with Back or by tapping outside the item
+	_inspect_was_open = open
 
 
 func _clear_pick() -> void:
 	_pick_holder = null
-	_pick_wait = 0
 	_show_take(false)
 
 
@@ -235,17 +254,26 @@ func _show_take(show: bool) -> void:
 
 func _on_take(_button = null) -> void:
 	var holder := _pick_holder
-	var is_card := _pick_is_card
+	var pos := _pick_pos
 	_clear_pick()
 	if not is_instance_valid(holder) or not holder.is_inside_tree():
 		return
-	print("[sts2port] Pick screen: taking ", holder.name)
-	if is_card:
-		if _inspect_screen != null and _inspect_screen.visible:
-			_inspect_screen.call("Close")
-		holder.emit_signal("Pressed", holder)  # what a left click on the card does
-	else:
-		holder.emit_signal("Released", holder)  # what a left click on the relic does
+	print("[sts2port] Pick: taking ", holder.name)
+	var screen := _inspect_open()
+	if screen != null:
+		screen.call("Close")  # fades out first; it only hides at the end of its tween
+	_click_when_clear(pos, TAKE_WAIT_FRAMES)
+
+
+## A real left click on the item once no inspect screen covers it: hover, press, hold, release.
+func _click_when_clear(pos: Vector2, frames_left: int) -> void:
+	if _inspect_open() != null and frames_left > 0:
+		_enqueue(_click_when_clear.bind(pos, frames_left - 1), _frame() + 1)
+		return
+	var start := _frame()
+	_enqueue(_motion(pos, 0), start)
+	_enqueue(_button(MOUSE_BUTTON_LEFT, true, pos, MOUSE_BUTTON_MASK_LEFT), start + HOVER_FRAMES)
+	_enqueue(_button(MOUSE_BUTTON_LEFT, false, pos, 0), start + HOVER_FRAMES + HOLD_FRAMES)
 
 
 func _within(node: Node, ancestor: Node) -> bool:
@@ -255,16 +283,6 @@ func _within(node: Node, ancestor: Node) -> bool:
 func _script_file(node: Node) -> String:
 	var script = node.get_script()
 	return script.resource_path.get_file() if script != null else ""
-
-
-func _find_by_script(node: Node, file: String) -> Node:
-	if _script_file(node) == file:
-		return node
-	for child in node.get_children():
-		var found := _find_by_script(child, file)
-		if found != null:
-			return found
-	return null
 
 
 ## Events keep their order: an event is never due before the one queued ahead of it.
@@ -331,6 +349,34 @@ func _ensure_language() -> void:
 		return
 	f.store_string(text)
 	print("[sts2port] Set game language to ", code, " (system locale ", OS.get_locale(), ")")
+
+
+## The game only offers its debug console commands (room, gold, fight...) when settings.save has "full_console": true.
+## For testing, an empty file named DEV_CONSOLE_FLAG next to the packs turns that on; without it the key is removed
+## again, so cheats are never left on by accident. Text edit only, like _ensure_language.
+func _sync_full_console(enable: bool) -> void:
+	if not FileAccess.file_exists(SETTINGS_PATH):
+		return
+	var text := FileAccess.get_file_as_string(SETTINGS_PATH)
+	# The key followed by a comma, or (as the last key) preceded by one.
+	var with_next := RegEx.create_from_string("\\s*\"full_console\"\\s*:\\s*(true|false)\\s*,")
+	var as_last := RegEx.create_from_string(",\\s*\"full_console\"\\s*:\\s*(true|false)")
+	var has := text.contains("\"full_console\"")
+	if enable == has:
+		return
+	if enable:
+		var brace := text.find("{")
+		if brace < 0:
+			return
+		text = text.substr(0, brace + 1) + "\n  \"full_console\": true," + text.substr(brace + 1)
+	elif with_next.search(text) != null:
+		text = with_next.sub(text, "")
+	else:
+		text = as_last.sub(text, "")
+	var f := FileAccess.open(SETTINGS_PATH, FileAccess.WRITE)
+	if f != null:
+		f.store_string(text)
+		print("[sts2port] Full dev console ", "on" if enable else "off", ": ", text.left(60).c_escape())
 
 
 func _language_code() -> String:

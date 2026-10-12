@@ -19,7 +19,8 @@ plus a confirm button on pick screens) all work. Not yet: texture/performance wo
 | Screen shape | New installs default to the **Auto** aspect ratio, which fills a 20:9 screen without stretching. An existing choice in Settings is never overridden. |
 | Network | The APK has no INTERNET permission: no metrics, crash reports or multiplayer leave the phone. |
 | Touch | Own touch layer in `boot.gd` (Godot's touch-to-mouse emulation is off). Tap = left click, held a few frames so quick taps register; drag = left drag (cards onto enemies, map scrolling); long-press (0.45 s, finger still) = right click, which opens the inspect screen for a card and never picks it up. Works in the pause menu too. Wait for the hand to settle between card plays, otherwise a tap can pick up the wrong card. |
-| Pick screens | On screens that take a card or relic the moment it's clicked (card reward, choose-a-card, choose-a-relic) a tap inspects instead: cards open the game's inspect screen, relics show their tooltip. The game's own confirm (tick) button then slides in at the right edge and takes it; Back or tapping elsewhere cancels. Screens with their own preview + confirm step (deck upgrade/transform/enchant, bundles) keep tap = click. |
+| Picks (tick) | Anything taken the moment it's clicked: card rewards, choose-a-card/relic, treasure relics, shop cards, relics and potions. A tap is the game's own right-click inspect (inspect screen, or the tooltip) and the game's confirm tick slides in at the right edge; the tick replays a real left click on the item. Back or tapping elsewhere cancels. Screens with their own preview + confirm (deck upgrade/remove/transform, bundles) keep tap = click. |
+| Dev console | An empty file `dev_console` next to the packs (`adb shell touch /sdcard/Android/data/com.howieyhy.sts2port/files/dev_console`) turns on the game's full console (backtick key: `room shop`, `gold 100`...) at the next launch; delete it to turn it off. |
 | Frame pacing | Swappy is turned off in the overlay: with it on, about one launch in three froze before the first frame. |
 
 ## How it works
@@ -57,6 +58,7 @@ Applied to a copy with Mono.Cecil; each one checks the code shape and fails loud
 | Save on pause | The game writes settings/prefs/progress/profile only in `NGame.Quit()` (window close). Android kills background apps without that, so in-memory changes were lost (the Early Access disclaimer reappeared every launch). `_Notification` now also flushes those saves on `NOTIFICATION_APPLICATION_PAUSED` (2015). |
 
 ## Known issues
+- On the treasure screen the tick overlaps the tip of the Skip/Proceed arrow.
 - Debug builds show Android's "not 16 KB-aligned" notice for some third-party native libs (Mono runtime,
   Spine). Harmless on this phone (4 KB pages); revisit for release builds.
 - Debug builds use FMOD's logging libraries; time to main menu is ~19 s (10 s without FMOD).

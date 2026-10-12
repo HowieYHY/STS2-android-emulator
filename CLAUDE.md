@@ -25,6 +25,9 @@ Plan: `C:\Users\Admin\.claude\plans\i-want-to-make-atomic-glacier.md` (riskiest 
 - On card and relic selection screens a tap is always right-click (inspect); a side button confirms the pick
   (like mobile StS1).
 
+- **Every** selection (anything where a tap commits a choice: rewards, shop cards/relics/potions, event picks)
+  gets tap = inspect + a confirm tick. Don't narrow this to a few screens.
+
 ## Known facts about the game (v0.111.0)
 See README "Feasibility findings". Decompiled source lives only in the scratchpad (re-create with
 `ilspycmd -p -o <outside-repo> -r <game data dir> <game data dir>/sts2.dll`).
@@ -78,6 +81,11 @@ See README "Feasibility findings". Decompiled source lives only in the scratchpa
 - A GDScript type error in `boot.gd` only shows on the phone as "autoload does not inherit from Node" and a black
   screen (the pck never mounts). **Parse-check before pushing**: copy it into a scratch project with
   `config_version=5` and run `Godot_v4.5.1-stable_mono_win64_console.exe --headless --path . --check-only --script boot.gd`.
+- Inserting a key into settings.save with `text.replace("{\n", ...)` hit **every** nested object too; the game
+  discarded the file as corrupt and recreated default settings (user's settings lost, the run was unaffected).
+  **Edit the game's JSON at one exact position (first brace / a regex on the key), test every layout headlessly
+  on the PC first** (`--headless --script` test with first/middle/last/absent cases), and check the next boot
+  log for "First time setup" or a rejected-save warning.
 - Verify a push by its effect (file timestamp on the phone), never by a filtered command's silence: a
   `push-game.ps1` call from Git Bash failed quietly and the phone kept the old overlay.
 
