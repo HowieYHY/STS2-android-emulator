@@ -8,7 +8,23 @@ you copy your own `SlayTheSpire2.pck` and `sts2.dll` from your Steam install to 
 Status: **playable on a Pixel 9a** (Android 17, Mali-G715): main menu, Spine animations, FMOD audio,
 character select, map, combat (drag a card onto an enemy plays it), card rewards, settings and saving across
 restarts (Continue resumes the run) and the port's touch layer (tap, drag, long-press = inspect, tap-to-inspect
-plus a confirm button on pick screens) all work, through the Act 1 boss into Act 2. Not yet: texture/performance work.
+plus a confirm button on pick screens) all work, through the Act 1 boss into Act 2. ASTC textures reduce memory use,
+and Android performance hints are enabled; combat frame-time spikes remain (see Known issues).
+
+## Latest device verification (13 October 2026)
+
+The **0.1.0 release build** (version code 1, arm64) is installed on the Pixel 9a. It appears in Android as
+**Slay the Spire 2**, with original spire artwork for the legacy, adaptive and monochrome launcher icons.
+The artwork and its generator live in `shell/icons/` and `tools/icon/make_icon.py`.
+
+- Verified the Gradle `monoRelease` output and that the APK is not debuggable.
+- Verified the APK's v2 signature and 16 KB ZIP alignment. Release builds use the existing local debug key
+  for this personal installation, allowing an in-place update that retains saves.
+- Installed with `adb install --no-incremental -r build\sts2port.apk`; checked the installed icon and title
+  in Android's App info, and confirmed the game reaches the main menu after a cold restart.
+- Reset Profile 1 through the game's profile deletion screen at the owner's request. Profiles 2 and 3 were
+  already empty. Selected a fresh Profile 1 and confirmed after a cold restart that the menu offers
+  Singleplayer with no Continue/Abandon Run options.
 
 ## Android behaviour (tested on device)
 | Situation | Behaviour |
@@ -34,6 +50,7 @@ APK (this repo only)            phone: /sdcard/Android/data/com.howieyhy.sts2por
     --main-pack .../overlay.pck      game's startup config, project.binary with our boot autoload first
     --force-steam off                android_boot/boot.gd (mounts SlayTheSpire2.pck, fixes language)
                                   SlayTheSpire2.pck  <- your file, unchanged
+                                  textures_astc.pck <- phone-format textures built on your PC (optional)
 ```
 
 Godot on Android loads C# assemblies from `res://.godot/mono/publish/arm64/` through its own file system,
@@ -44,11 +61,21 @@ so they can live in a pack on the phone instead of inside the APK.
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\fetch-plugins.ps1   # once: official spine-godot 4.2 build (SHA-256 pinned)
 powershell -ExecutionPolicy Bypass -File scripts\build-apk.ps1 -Release   # build\sts2port.apk (repo code only; builds the perf plugin first)
-adb install -r build\sts2port.apk
+adb install --no-incremental -r build\sts2port.apk
 powershell -ExecutionPolicy Bypass -File scripts\push-game.ps1 -GameDir "D:\Steam\steamapps\common\Slay the Spire 2"
 ```
-`push-game.ps1` patches a copy of `sts2.dll` (into `%LOCALAPPDATA%\sts2port`), builds `overlay.pck` and pushes
-both packs. The 1.9 GB pack is only re-sent when its size changes.
+`push-game.ps1` patches a copy of `sts2.dll` (into `%LOCALAPPDATA%\sts2port`), builds `overlay.pck` and
+`textures_astc.pck`, and pushes all three packs. The 1.9 GB game pack is only re-sent when its size changes;
+the texture pack is only re-sent when its SHA-1 changes. For an APK-only update, rebuild and install the APK;
+the packs already on the phone can stay in place.
+
+### Reset progress
+
+From the main menu, tap the profile badge at the top left, tap the trash button under the populated profile,
+and confirm **Delete**. This clears that profile's runs, histories, unlocks and local achievements while
+retaining the installed game packs and global settings. Repeat for any other populated profiles, then select
+an empty profile to start fresh. Press Home before stopping or restarting the app so the save-on-pause
+patch flushes the new state.
 
 ## Patches to sts2.dll (tools/Sts2Patcher)
 
@@ -69,7 +96,8 @@ Applied to a copy with Mono.Cecil; each one checks the code shape and fails loud
 - Once, tapping a potion's Drink right after opening its menu didn't drink it; the same taps worked on the next
   try. Not reproduced in 3 later tries (including right after a card play).
 - Debug builds show Android's "not 16 KB-aligned" notice for some third-party native libs (Mono runtime,
-  Spine). Harmless on this phone (4 KB pages); revisit for release builds.
+  Spine). Harmless on this phone (4 KB pages). The release APK passes the 16 KB ZIP-alignment check;
+  native ELF compatibility on a device with 16 KB pages is still unverified.
 - Debug builds use FMOD's logging libraries; time to main menu is ~19 s (10 s without FMOD).
 - `release_info.json` is only looked for next to the executable, which is read-only on Android: the version
   check for mods is skipped (harmless).
@@ -112,8 +140,9 @@ the flag) logs the GC and JIT activity in each slow frame. CPU profiling works w
 
 ## Feasibility findings (game v0.111.0, Godot 4.5.1 .NET)
 
-**Verdict: feasible, no hard blocker found.** The biggest unknowns are now runtime ones that only the phone can answer
-(loading `sts2.dll` from outside the APK, Mono on arm64, memory use).
+**Verdict: feasible, no hard blocker found.** This was the initial analysis; loading `sts2.dll` from outside
+the APK and running it on Mono arm64 have since been verified on the Pixel 9a. See the device behaviour,
+performance measurements and remaining risks for the current state.
 
 | Question | Finding | Impact |
 |---|---|---|
@@ -130,13 +159,12 @@ the flag) logs the GC and JIT activity in each slow frame. CPU profiling works w
 | Harmony | Only used by the game's own mod loader (`mods/` folder). | We avoid needing Harmony: touch input and fixes can live in our shell's own nodes. Harmony on Mono arm64 is unproven, so it's a fallback, not the plan. |
 
 ### Main remaining risks
-1. **Loading `sts2.dll` from the phone's storage** instead of compiling it into the APK. Plan: the shell's own
-   assembly loads it at startup and registers its script classes with Godot's C# bridge. If that proves impossible,
-   fallback is building the APK locally *with* your own `sts2.dll` (never committed or shared).
-2. **Mono on Android vs CoreCLR on desktop**: the game runs on CoreCLR; Godot Android uses Mono. Rare API differences
+1. **Mono on Android vs CoreCLR on desktop**: the game runs on CoreCLR; Godot Android uses Mono. Rare API differences
    may surface at runtime.
-3. **Memory**: 1.9 GB pack plus CPU-decompressed BC textures on a phone.
-4. **Game updates** may need the port re-checked.
+2. **Memory and performance**: ASTC reduces memory use, but combat hitches remain and devices other than
+   the Pixel 9a have not been tested.
+3. **Game updates** may need the port re-checked.
+4. **16 KB page-size devices** need native library compatibility testing.
 
 ## Build machine setup (Windows)
 
@@ -150,6 +178,7 @@ the flag) logs the GC and JIT activity in each slow frame. CPU profiling works w
 The MSI build of the JDK ignores winget's `--location`, so use the portable zip to keep it on D:.
 
 ## Tools
+- `python -I tools/icon/make_icon.py` — regenerate the original launcher icon PNGs in `shell/icons/` (requires Pillow).
 - `scripts\dev-console.ps1 [-On|-Off] [-Restart] [-Run "cmd; cmd"]` — the game's dev console on the phone, for testing.
 - `python -I scripts/spikes/pck_list.py <pck> <outdir>` — list a pck's files and header (read-only).
 - `python -I scripts/spikes/pck_extract.py <pck> <outdir> <regex>` — extract matching files (read-only).
