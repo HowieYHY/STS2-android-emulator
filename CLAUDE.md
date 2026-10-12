@@ -112,6 +112,13 @@ See README "Feasibility findings". Decompiled source lives only in the scratchpa
 - `powershell -File script.ps1 -Arg "a","b"` passes ONE string "a,b" (no arrays through -File). Split it yourself.
 - Godot test harness (`--headless --script t.gd` extending SceneTree): build nodes on the first `process_frame`,
   not in `_init`/`_initialize`; before that `get_tree()` is null.
+- Windowed mode (Settings → Fullscreen off) on Android misaligned touch and couldn't be undone by touch. The game
+  already had the fix: its `SupportedWindowMode.FullscreenOnly` platform mode. Before inventing a fix, look for
+  the game's own console/Steam Deck switches (`PlatformUtil`, `SupportedWindowMode`, launch args).
+- `dev-console.ps1 -Restart` must press Home before force-stop, or the save-on-pause doesn't run and in-memory
+  changes are lost (the Early Access pop-up came back).
+- A tap and a drag shorter than the slop (~22 px) are the same thing: tiny slider nudges are taps. Use a two-step
+  drag (away, then back to the exact spot).
 - Verify a push by its effect (file timestamp on the phone), never by a filtered command's silence: a
   `push-game.ps1` call from Git Bash failed quietly and the phone kept the old overlay.
 

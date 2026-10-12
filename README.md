@@ -8,7 +8,7 @@ you copy your own `SlayTheSpire2.pck` and `sts2.dll` from your Steam install to 
 Status: **playable on a Pixel 9a** (Android 17, Mali-G715): main menu, Spine animations, FMOD audio,
 character select, map, combat (drag a card onto an enemy plays it), card rewards, settings and saving across
 restarts (Continue resumes the run) and the port's touch layer (tap, drag, long-press = inspect, tap-to-inspect
-plus a confirm button on pick screens) all work. Not yet: texture/performance work.
+plus a confirm button on pick screens) all work, through the Act 1 boss into Act 2. Not yet: texture/performance work.
 
 ## Android behaviour (tested on device)
 | Situation | Behaviour |
@@ -17,6 +17,7 @@ plus a confirm button on pick screens) all work. Not yet: texture/performance wo
 | Home / app switch | Settings, prefs and progress are flushed on pause (Sts2Patcher "Save on pause"); runs auto-save as usual. Continue resumes after the app is killed. |
 | Rotation | Landscape and reverse landscape both work; touch stays aligned after a flip. |
 | Screen shape | New installs default to the **Auto** aspect ratio, which fills a 20:9 screen without stretching. An existing choice in Settings is never overridden. |
+| Settings | Tested on device: checkboxes, arrow selectors, sliders (drag), dropdowns, list scrolling (drag), Credits, Back closes screens. Fullscreen is forced and its tickbox hidden (Sts2Patcher "Fullscreen only"); windowed mode put the game under the system bars with touch misaligned. |
 | Network | The APK has no INTERNET permission: no metrics, crash reports or multiplayer leave the phone. |
 | Touch | Own touch layer in `boot.gd` (Godot's touch-to-mouse emulation is off). Tap = left click, held a few frames so quick taps register; drag = left drag (cards onto enemies, map scrolling); long-press (0.45 s, finger still) = right click, which opens the inspect screen for a card and never picks it up. Works in the pause menu too. Wait for the hand to settle between card plays, otherwise a tap can pick up the wrong card. |
 | Picks (tick) | Anything taken the moment it's clicked: card rewards, choose-a-card/relic, shop cards, relics and potions, and event/Ancient options (incl. the next act's relic and Proceed). A tap is the game's own right-click inspect (inspect screen, or the tooltip) and the game's confirm tick slides in at the right edge; the tick replays a real left click on the item. Back or tapping elsewhere cancels. The treasure room's single relic is taken on tap (no tick). The tick moves above the Proceed/Skip arrow if a screen shows both. Screens with their own preview + confirm (deck upgrade/remove/transform, bundles) keep tap = click. |
@@ -57,7 +58,13 @@ Applied to a copy with Mono.Cecil; each one checks the code shape and fails loud
 | ModelDb lazy init | Mono runs `beforefieldinit` static initialisers when an instance is created, CoreCLR only on first static field read. Models with static fields that call ModelDb (e.g. `BowlbugsNormal`) then ran mid-`ModelDb.Init` and crashed startup. `Get<T>` now creates missing models on demand. |
 | Save on pause | The game writes settings/prefs/progress/profile only in `NGame.Quit()` (window close). Android kills background apps without that, so in-memory changes were lost (the Early Access disclaimer reappeared every launch). `_Notification` now also flushes those saves on `NOTIFICATION_APPLICATION_PAUSED` (2015). |
 
+| Fullscreen only | The Null platform reported `SupportedWindowMode.Any`; unticking Fullscreen on a phone left the game windowed under the system bars with touch offset (taps hit the wrong control, so it couldn't be ticked again). `NullPlatformUtilStrategy.GetSupportedWindowMode()` now returns `FullscreenOnly`, the game's own console mode: fullscreen is forced and the tickbox hidden. |
+
 ## Known issues
+- Settings → Language: the two Chinese entries (中文, 繁體中文) are drawn with white blocks over them in the
+  list (Japanese and Korean are fine). Not investigated yet; check whether Chinese text in-game is affected.
+- Rooms entered with the dev console (`room treasure`...) aren't part of the saved map: after a restart the run
+  resumes at the last real map node and anything gained there is gone. Expected; only matters for testing.
 - Once, tapping a potion's Drink right after opening its menu didn't drink it; the same taps worked on the next
   try. Not reproduced in 3 later tries (including right after a card play).
 - Debug builds show Android's "not 16 KB-aligned" notice for some third-party native libs (Mono runtime,
