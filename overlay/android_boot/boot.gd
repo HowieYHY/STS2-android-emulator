@@ -51,6 +51,7 @@ const PICK_ITEMS := {
 const INSPECT_SCREENS := ["NInspectCardScreen.cs", "NInspectRelicScreen.cs"]
 const INSPECTION_CONTAINER := "/root/Game/InspectionContainer"
 const CONFIRM_BUTTON_SCENE := "res://scenes/ui/confirm_button.tscn"
+const PROCEED_GAP := 12.0  # px between a lifted tick and the Proceed/Skip arrow below it
 const TAKE_WAIT_FRAMES := 120  # longest wait for a closing inspect screen to hide before clicking the item anyway
 var _pick_holder: Control = null
 var _pick_pos := Vector2.ZERO
@@ -250,6 +251,31 @@ func _show_take(show: bool) -> void:
 		_take_layer.add_child(_take_button)
 		_take_button.connect("Released", _on_take)
 	_take_button.call("Enable" if show else "Disable")
+	if show:
+		_take_layer.offset = Vector2(0, -_proceed_overlap())
+
+
+## Some pick screens (treasure) also show the game's Proceed/Skip arrow in the same corner as the confirm button.
+## Returns how far to lift the tick so it sits just above any visible one. Only the vertical extent is compared:
+## the tick slides in horizontally, so its x isn't final yet.
+func _proceed_overlap() -> float:
+	var tick := _take_button.get_global_rect()  # in the tick layer's own space, i.e. before any lift
+	var lift := 0.0
+	for button in _find_all_by_script(get_tree().root, "NProceedButton.cs", []):
+		if button is Control and button.is_visible_in_tree():
+			var xform: Transform2D = button.get_global_transform_with_canvas()  # screen space, incl. its layer
+			var arrow := Rect2(xform.origin, button.size * xform.get_scale())
+			if tick.position.y < arrow.end.y and arrow.position.y < tick.end.y:
+				lift = maxf(lift, tick.end.y - arrow.position.y + PROCEED_GAP)
+	return lift
+
+
+func _find_all_by_script(node: Node, file: String, found: Array) -> Array:
+	if _script_file(node) == file:
+		found.append(node)
+	for child in node.get_children():
+		_find_all_by_script(child, file, found)
+	return found
 
 
 func _on_take(_button = null) -> void:

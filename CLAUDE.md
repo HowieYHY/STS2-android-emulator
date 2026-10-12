@@ -28,6 +28,23 @@ Plan: `C:\Users\Admin\.claude\plans\i-want-to-make-atomic-glacier.md` (riskiest 
 - **Every** selection (anything where a tap commits a choice: rewards, shop cards/relics/potions, event picks)
   gets tap = inspect + a confirm tick. Don't narrow this to a few screens.
 
+## Testing on the phone (user's rule: use the dev console, don't play whole runs)
+- Get to the screen under test with the game's console instead of playing to it:
+  `scripts\dev-console.ps1 -On -Restart`, wait for the menu, Continue/start a run, then
+  `scripts\dev-console.ps1 -Run "gold 200; room shop"`. Turn it off afterwards with `-Off`.
+- Useful commands (from the decompiled `ConsoleCommands`): `room <monster|elite|boss|treasure|shop|event|restsite>`,
+  `fight <ENCOUNTER_ID>`, `event <ID>`, `act <n>`, `travel` (jump to any map node), `gold/heal/energy/draw <n>`,
+  `relic add|remove <ID>`, `potion <ID>`, `card <ID> [pile]`, `upgrade <hand-index>`, `win` (win the combat),
+  `kill all`, `godmode`, `instant`. IDs are SCREAMING_SNAKE_CASE (e.g. `VANTOM_BOSS`, `SLIMES_WEAK`).
+- Never run `cloud delete`, `sentry crash`, `die`, `leaderboard`, `achievement` (the script refuses them).
+- The console opens with the backtick key; on the phone `adb shell input keyevent KEYCODE_GRAVE` works and Android
+  shows its keyboard (window shrinks to 2424x1017 while it's up, harmless). `input text` needs `%s` for spaces.
+- Before blaming new code for a hang, A/B it over several launches against the last good build (see lessons).
+- Long-press and hold-to-preview in adb: `input swipe x y x y 900` (long-press), `input motionevent DOWN/MOVE/UP`
+  (hold a drag to read the game's damage preview before releasing).
+- Logcat: poll with `adb logcat -d`; the game logs plays (`playing card X (targeting Y)`), rewards
+  (`obtained CARD.X`), room loads, and the port logs `[sts2port] Pick: inspecting/taking <item>`.
+
 ## Known facts about the game (v0.111.0)
 See README "Feasibility findings". Decompiled source lives only in the scratchpad (re-create with
 `ilspycmd -p -o <outside-repo> -r <game data dir> <game data dir>/sts2.dll`).
@@ -86,6 +103,14 @@ See README "Feasibility findings". Decompiled source lives only in the scratchpa
   **Edit the game's JSON at one exact position (first brace / a regex on the key), test every layout headlessly
   on the PC first** (`--headless --script` test with first/middle/last/absent cases), and check the next boot
   log for "First time setup" or a rejected-save warning.
+- The game creates screens lazily (e.g. `NInspectCardScreen` under `/root/Game/InspectionContainer` only after
+  the first inspect). Caching a lookup done before that kept "nothing found" forever, and the tick vanished on the
+  first tap inside the inspect screen. Look such nodes up when needed.
+- A screen that closes with a fade (`NInspectCardScreen.Close()`) still covers the item until its tween ends; a
+  click sent right away hit the overlay and did nothing. Wait until it's actually hidden.
+- `powershell -File script.ps1 -Arg "a","b"` passes ONE string "a,b" (no arrays through -File). Split it yourself.
+- Godot test harness (`--headless --script t.gd` extending SceneTree): build nodes on the first `process_frame`,
+  not in `_init`/`_initialize`; before that `get_tree()` is null.
 - Verify a push by its effect (file timestamp on the phone), never by a filtered command's silence: a
   `push-game.ps1` call from Git Bash failed quietly and the phone kept the old overlay.
 
