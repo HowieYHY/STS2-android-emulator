@@ -7,8 +7,8 @@ you copy your own `SlayTheSpire2.pck` and `sts2.dll` from your Steam install to 
 
 Status: **playable on a Pixel 9a** (Android 17, Mali-G715): main menu, Spine animations, FMOD audio,
 character select, map, combat (drag a card onto an enemy plays it), card rewards, settings and saving across
-restarts (Continue resumes the run) all work with default touch-as-mouse. Not yet: long-press = right-click,
-inspect-on-tap selection screens, confirm button, texture/performance work.
+restarts (Continue resumes the run) and the port's touch layer (tap, drag, long-press = inspect) all work. Not
+yet: inspect-on-tap selection screens with a confirm button, texture/performance work.
 
 ## Android behaviour (tested on device)
 | Situation | Behaviour |
@@ -18,7 +18,8 @@ inspect-on-tap selection screens, confirm button, texture/performance work.
 | Rotation | Landscape and reverse landscape both work; touch stays aligned after a flip. |
 | Screen shape | New installs default to the **Auto** aspect ratio, which fills a 20:9 screen without stretching. An existing choice in Settings is never overridden. |
 | Network | The APK has no INTERNET permission: no metrics, crash reports or multiplayer leave the phone. |
-| Touch | Tap = click, drag = drag (cards onto enemies, map scrolling). Wait for the hand to settle between card plays, otherwise a tap can pick up the wrong card. |
+| Touch | Own touch layer in `boot.gd` (Godot's touch-to-mouse emulation is off). Tap = left click, held a few frames so quick taps register; drag = left drag (cards onto enemies, map scrolling); long-press (0.45 s, finger still) = right click, which opens the inspect screen for a card and never picks it up. Works in the pause menu too. Wait for the hand to settle between card plays, otherwise a tap can pick up the wrong card. |
+| Frame pacing | Swappy is turned off in the overlay: with it on, about one launch in three froze before the first frame. |
 
 ## How it works
 
@@ -55,8 +56,6 @@ Applied to a copy with Mono.Cecil; each one checks the code shape and fails loud
 | Save on pause | The game writes settings/prefs/progress/profile only in `NGame.Quit()` (window close). Android kills background apps without that, so in-memory changes were lost (the Early Access disclaimer reappeared every launch). `_Notification` now also flushes those saves on `NOTIFICATION_APPLICATION_PAUSED` (2015). |
 
 ## Known issues
-- Very short taps can be missed by some menu buttons (they react to a press that lasts a few frames).
-  The touch layer will hold presses for a minimum time.
 - Debug builds show Android's "not 16 KB-aligned" notice for some third-party native libs (Mono runtime,
   Spine). Harmless on this phone (4 KB pages); revisit for release builds.
 - Debug builds use FMOD's logging libraries; time to main menu is ~19 s (10 s without FMOD).

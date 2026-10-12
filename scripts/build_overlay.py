@@ -41,7 +41,12 @@ DROPPED_EXTENSIONS = ["res://addons/sentry/sentry.gdextension"]  # no Android bu
 BOOT_AUTOLOAD = ("autoload/AndroidBoot", "*res://android_boot/boot.gd")
 # Project settings the PC game never needed. quit_on_go_back defaults to true, so Android's Back button/gesture
 # closed the game instantly (losing progress since the last room); with it off, Back reaches the game's input map.
-EXTRA_SETTINGS = {"application/config/quit_on_go_back": pcklib.variant_bool(False)}
+# Swappy (Android frame pacing) is restarted when the game switches V-Sync mode at startup, and about one launch
+# in three then froze before the first frame. A card game doesn't need it; plain FIFO present is used instead.
+EXTRA_SETTINGS = {
+    "application/config/quit_on_go_back": pcklib.variant_bool(False),
+    "display/window/frame_pacing/android/enable_frame_pacing": pcklib.variant_bool(False),
+}
 PATCHER_PROJECT = os.path.join(REPO, "tools", "Sts2Patcher", "Sts2Patcher.csproj")
 PATCHER_DLL = os.path.join(REPO, "tools", "Sts2Patcher", "bin", "Release", "net9.0", "Sts2Patcher.dll")
 

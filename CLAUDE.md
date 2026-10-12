@@ -45,6 +45,8 @@ See README "Feasibility findings". Decompiled source lives only in the scratchpa
 - `.gitignore` is matched case-insensitively on Windows: `sts2*` silently ignored `tools/Sts2Patcher`. Use
   narrow patterns (`sts2.*`) and check `git status` lists every new folder before committing.
 - Running `push-game.ps1` via `powershell.exe` hits the execution policy; use `-ExecutionPolicy Bypass -File`.
+  Under `-File`, `$PSScriptRoot` was empty in the `param()` defaults; scripts resolve their folder in the body
+  from `$MyInvocation.MyCommand.Path`.
   Under `$ErrorActionPreference = "Stop"`, PowerShell 5.1 turns adb's stderr progress into an error:
   run native tools through a helper and check `$LASTEXITCODE`.
 - Git Bash rewrites `/data/...` and `/sdcard/...` adb arguments into Windows paths: `export MSYS_NO_PATHCONV=1`.
@@ -65,6 +67,14 @@ See README "Feasibility findings". Decompiled source lives only in the scratchpa
 - Commit b7a3341's message claimed an Auto-aspect default and README notes that never landed: the scripted
   edit failed ("pattern not found") and the commit went ahead in the same command. **Never chain a commit after
   a scripted edit; check `git diff --stat` matches the message before committing.**
+- A startup freeze first looked like the new touch code's fault; the unchanged build froze too. **Before blaming
+  a change, A/B it against the last good build over several launches** (one launch proves nothing). The cause
+  was Swappy frame pacing racing with the game's V-Sync switch (~1 in 3 launches); it's off in the overlay now.
+  A 9-day-old phone with full swap made it far worse (3 of 4), so restart the phone before judging flakiness.
+- Don't stream `adb logcat` under `timeout` in a loop: killing it wedged the adb server and the phone "vanished".
+  Poll `adb logcat -d` instead; if adb loses the phone, `adb kill-server` before asking the user to replug.
+- Godot's built-in Android long-press (`enable_long_press_as_right_click`) cancels the touch first, which Godot
+  turns into a left *release*, and the game's card holders pick the card on that release. Hence our own layer.
 - Verify a push by its effect (file timestamp on the phone), never by a filtered command's silence: a
   `push-game.ps1` call from Git Bash failed quietly and the phone kept the old overlay.
 

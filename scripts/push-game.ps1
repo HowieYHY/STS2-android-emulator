@@ -14,12 +14,14 @@
 #>
 param(
     [Parameter(Mandatory = $true)][string]$GameDir,
-    [string]$Apk = (Join-Path $PSScriptRoot "..\build\sts2port.apk"),
+    [string]$Apk = "",  # default ..\build\sts2port.apk, set below ($PSScriptRoot can be empty here under -File)
     [string]$OutDir = (Join-Path $env:LOCALAPPDATA "sts2port"),
     [string]$Adb = $(if ($env:ANDROID_HOME) { Join-Path $env:ANDROID_HOME "platform-tools\adb.exe" } else { "adb" }),
     [switch]$ForceBigPck
 )
 $ErrorActionPreference = "Stop"
+$here = Split-Path -Parent $MyInvocation.MyCommand.Path
+if (-not $Apk) { $Apk = Join-Path $here "..\build\sts2port.apk" }
 $Package = "com.howieyhy.sts2port"
 $Remote = "/storage/emulated/0/Android/data/$Package/files"
 
@@ -35,7 +37,7 @@ if (-not (Test-Path $pck)) { throw "SlayTheSpire2.pck not found in '$GameDir'. P
 if (-not (Test-Path $Apk)) { throw "APK not found at '$Apk'. Build it first (scripts\build-apk.ps1)." }
 
 Write-Host "Building overlay.pck..."
-& python -I (Join-Path $PSScriptRoot "build_overlay.py") --game-dir $GameDir --apk $Apk --out $OutDir
+& python -I (Join-Path $here "build_overlay.py") --game-dir $GameDir --apk $Apk --out $OutDir
 if ($LASTEXITCODE -ne 0) { throw "build_overlay.py failed" }
 
 $devices = Invoke-Adb devices | Select-String "`tdevice$"

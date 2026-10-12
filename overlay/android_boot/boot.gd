@@ -5,6 +5,7 @@ extends Node
 ## 2. Makes sure the game has a language saved, because the game's own fallback crashes on Android
 ##    locales with extensions (see _ensure_language). A brand-new settings file also gets the Auto aspect ratio.
 ## 3. Turns Android's Back into Escape (see _notification).
+## 4. Turns touch into mouse input the game understands (see "Touch"), replacing Godot's built-in emulation.
 
 ## The game's settings file for the Null (non-Steam) platform: user://default/<local player id 1>/.
 const SETTINGS_PATH := "user://default/1/settings.save"
@@ -17,7 +18,25 @@ const LANGUAGES := {
 }
 
 
+## Touch timings. A press waits HOVER_FRAMES after the cursor moves because the game's buttons only accept a
+## click once hover has focused them; a tap is held HOLD_FRAMES because a one-frame press can be missed.
+const LONG_PRESS_MSEC := 450
+const DRAG_SLOP_FRACTION := 0.02  # of the window height (about 22 px on a 1080p-tall screen)
+const HOVER_FRAMES := 2
+const HOLD_FRAMES := 3
+
+enum Touch { NONE, PENDING, DRAGGING, LONG_PRESSED }
+var _touch := Touch.NONE
+var _touch_start := Vector2.ZERO
+var _touch_down_msec := 0
+var _touch_down_frame := 0
+var _last_mouse := Vector2.ZERO
+var _queue: Array = []  # [due process frame, InputEvent], in order
+
+
 func _init() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS  # touch must keep working while the game is paused (pause menu)
+	Input.emulate_mouse_from_touch = false
 	var pck := _main_pack_dir().path_join("SlayTheSpire2.pck")
 	if ProjectSettings.load_resource_pack(pck, false):
 		print("[sts2port] Mounted ", pck)
@@ -36,6 +55,114 @@ func _notification(what: int) -> void:
 			key.physical_keycode = KEY_ESCAPE
 			key.pressed = pressed
 			Input.parse_input_event(key)
+	elif what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+		if _touch == Touch.DRAGGING:
+			_enqueue(_button(MOUSE_BUTTON_LEFT, false, _last_mouse, 0), _frame())
+		_touch = Touch.NONE
+
+
+# --- Touch -------------------------------------------------------------------------------------------------
+# Godot's own touch-to-mouse emulation presses the left button the moment a finger lands. The game's card
+# holders then ignore a right click until that press is released, and the release itself picks the card, so a
+# long-press could never inspect. Here a press is only sent once the touch is known to be a tap, a drag or a
+# long-press:
+#   finger down          -> cursor moves there (hover)
+#   moves past the slop  -> left press at the start point, then the cursor follows (drag)
+#   lifted before that   -> left click (tap)
+#   held LONG_PRESS_MSEC -> right click (inspect); the rest of that touch is ignored
+# Only the first finger is used, like Godot's emulation.
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventScreenTouch:
+		get_viewport().set_input_as_handled()
+		if event.index != 0:
+			return
+		if event.pressed:
+			_on_touch_down(event.position)
+		else:
+			_on_touch_up(event.position, event.canceled)
+	elif event is InputEventScreenDrag:
+		get_viewport().set_input_as_handled()
+		if event.index == 0:
+			_on_touch_drag(event.position)
+
+
+func _process(_delta: float) -> void:
+	if _touch == Touch.PENDING and Time.get_ticks_msec() - _touch_down_msec >= LONG_PRESS_MSEC:
+		_touch = Touch.LONG_PRESSED
+		_click(MOUSE_BUTTON_RIGHT, _touch_start)
+	var frame := _frame()
+	while not _queue.is_empty() and _queue[0][0] <= frame:
+		Input.parse_input_event(_queue.pop_front()[1])
+
+
+func _on_touch_down(pos: Vector2) -> void:
+	_touch = Touch.PENDING
+	_touch_start = pos
+	_touch_down_msec = Time.get_ticks_msec()
+	_touch_down_frame = _frame()
+	_enqueue(_motion(pos, 0), _frame())
+
+
+func _on_touch_drag(pos: Vector2) -> void:
+	match _touch:
+		Touch.PENDING:
+			if pos.distance_to(_touch_start) > DRAG_SLOP_FRACTION * get_viewport().get_visible_rect().size.y:
+				_touch = Touch.DRAGGING
+				_enqueue(_button(MOUSE_BUTTON_LEFT, true, _touch_start, MOUSE_BUTTON_MASK_LEFT), _touch_down_frame + HOVER_FRAMES)
+				_enqueue(_motion(pos, MOUSE_BUTTON_MASK_LEFT), _frame())
+		Touch.DRAGGING:
+			_enqueue(_motion(pos, MOUSE_BUTTON_MASK_LEFT), _frame())
+
+
+func _on_touch_up(pos: Vector2, canceled: bool) -> void:
+	match _touch:
+		Touch.PENDING:
+			if not canceled:
+				_click(MOUSE_BUTTON_LEFT, _touch_start)
+		Touch.DRAGGING:
+			_enqueue(_motion(pos, MOUSE_BUTTON_MASK_LEFT), _frame())
+			_enqueue(_button(MOUSE_BUTTON_LEFT, false, pos, 0), _frame())
+	_touch = Touch.NONE
+
+
+## Press after the hover delay, hold, release.
+func _click(button: MouseButton, pos: Vector2) -> void:
+	var mask := MOUSE_BUTTON_MASK_LEFT if button == MOUSE_BUTTON_LEFT else MOUSE_BUTTON_MASK_RIGHT
+	var press_frame := maxi(_touch_down_frame + HOVER_FRAMES, _frame())
+	_enqueue(_button(button, true, pos, mask), press_frame)
+	_enqueue(_button(button, false, pos, 0), press_frame + HOLD_FRAMES)
+
+
+## Events keep their order: an event is never due before the one queued ahead of it.
+func _enqueue(event: InputEvent, due_frame: int) -> void:
+	if not _queue.is_empty():
+		due_frame = maxi(due_frame, _queue[-1][0])
+	_queue.append([due_frame, event])
+
+
+func _frame() -> int:
+	return Engine.get_process_frames()
+
+
+func _motion(pos: Vector2, mask: int) -> InputEventMouseMotion:
+	var e := InputEventMouseMotion.new()
+	e.position = pos
+	e.global_position = pos
+	e.relative = pos - _last_mouse
+	e.button_mask = mask
+	_last_mouse = pos
+	return e
+
+
+func _button(button: MouseButton, pressed: bool, pos: Vector2, mask: int) -> InputEventMouseButton:
+	var e := InputEventMouseButton.new()
+	e.button_index = button
+	e.pressed = pressed
+	e.position = pos
+	e.global_position = pos
+	e.button_mask = mask
+	return e
 
 
 func _main_pack_dir() -> String:
