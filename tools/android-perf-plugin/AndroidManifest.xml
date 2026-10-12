@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Registers Sts2PortPerfPlugin as a Godot Android plugin (v2): Godot reads this meta-data at startup. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.howieyhy.sts2port.perf">
+    <application>
+        <meta-data
+            android:name="org.godotengine.plugin.v2.Sts2PortPerf"
+            android:value="com.howieyhy.sts2port.perf.Sts2PortPerfPlugin" />
+    </application>
+</manifest>

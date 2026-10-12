@@ -44,3 +44,6 @@ __pycache__/
 shell/addons/spine/
 shell/addons/fmod/
 shell/android/
+
+# Built by scripts/build-perf-plugin.ps1
+shell/addons/sts2port_android/libs/

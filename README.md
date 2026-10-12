@@ -43,7 +43,7 @@ so they can live in a pack on the phone instead of inside the APK.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\fetch-plugins.ps1   # once: official spine-godot 4.2 build (SHA-256 pinned)
-powershell -ExecutionPolicy Bypass -File scripts\build-apk.ps1   # builds build\sts2port.apk (repo code only)
+powershell -ExecutionPolicy Bypass -File scripts\build-apk.ps1 -Release   # build\sts2port.apk (repo code only; builds the perf plugin first)
 adb install -r build\sts2port.apk
 powershell -ExecutionPolicy Bypass -File scripts\push-game.ps1 -GameDir "D:\Steam\steamapps\common\Slay the Spire 2"
 ```
@@ -84,6 +84,10 @@ Applied to a copy with Mono.Cecil; each one checks the code shape and fails loud
   - Main thread CPU: ~70% busy, in Godot (39%), libc locks/allocator (19%) and Mono runtime (16%), running on
     the mid cores mostly at 650-1,300 MHz of 2,600. Godot's published Android symbols don't match the .NET
     template we use, so the hot functions can't be named without building that template with symbols.
+  - Android performance hints (ADPF, on since this build): the APK's Sts2PortPerf plugin opens a hint session
+    for the game thread (60 fps target) and boot.gd reports every frame. A/B, two rounds each way: first-use
+    slow frames 11 -> 8 and time in them -30% (JIT compile time -37%), steady slow frames 3-4 -> 2. The worst
+    first-use frames (~140-170 ms) didn't change. A `no_perf_hint` file next to the packs turns it off.
 - Startup ~16 s to the menu, 9.6 s of it the Mega Crit intro logo ("Skip Intro Logo" in Settings, off by choice).
 
 ## Performance (Pixel 9a, same scene before/after the ASTC texture pack)

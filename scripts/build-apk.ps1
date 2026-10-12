@@ -34,6 +34,12 @@ if (-not (Test-Path (Join-Path $shell "android\build\build.gradle"))) {
     Write-Host "First Gradle build: installing Godot's Android build template into shell\android..."
     $template = @("--install-android-build-template")
 }
+if (-not $template) {
+    # The perf plugin compiles against the template's godot-lib, so it can only be built once that's installed.
+    & (Join-Path $PSScriptRoot "build-perf-plugin.ps1")
+} else {
+    Write-Host "Run build-apk.ps1 again after this first build: the perf plugin needs the installed template."
+}
 $apk = Join-Path $out "sts2port.apk"
 if (Test-Path $apk) { Remove-Item $apk }
 & $Godot --headless --path $shell @template $mode "Android" "../build/sts2port.apk"

@@ -140,6 +140,12 @@ See README "Feasibility findings". Decompiled source lives only in the scratchpa
   sensor landscape, the game said nothing, so Godot's fixed-landscape default won and the screen never turned 180°
   (README even claimed it did, from the APK manifest alone). Check the running activity
   (`dumpsys activity activities | grep requestedOrientation`), and set such settings in build_overlay EXTRA_SETTINGS.
+- Godot's Gradle export writes the APK in ~4 min, then `Godot ... --export-release` can sit idle for 20+ min
+  (waiting on the Gradle daemon). Run it in the background, watch build\sts2port.apk's timestamp and the manifest
+  (`aapt2 dump xmltree`), and stop the idle Godot process once the APK is there.
+- A small Android plugin doesn't need a Gradle library project: javac against android.jar + the template's
+  godot-lib classes.jar, then zip AndroidManifest.xml + classes.jar + R.txt as the .aar (build-perf-plugin.ps1).
+  PowerShell 5.1: wrap a file list in @(...) before splatting, or a single file splats as characters.
 - Verify a push by its effect (file timestamp on the phone), never by a filtered command's silence: a
   `push-game.ps1` call from Git Bash failed quietly and the phone kept the old overlay.
 

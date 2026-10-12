@@ -7,6 +7,7 @@ extends Node
 ##    locales with extensions (see _ensure_language). A brand-new settings file also gets the Auto aspect ratio.
 ## 3. Turns Android's Back into Escape (see _notification).
 ## 4. Turns touch into mouse input the game understands (see "Touch"), replacing Godot's built-in emulation.
+## 5. Feeds Android performance hints for the game thread (see _start_perf_hints).
 
 ## The game's settings file for the Null (non-Steam) platform: user://default/<local player id 1>/.
 const SETTINGS_PATH := "user://default/1/settings.save"
@@ -17,6 +18,10 @@ const TEXTURES_PCK := "textures_astc.pck"
 const PERF_LOG_FLAG := "perf_log"
 const PERF_LOG_SEC := 5.0
 const PERF_SPIKE_SEC := 0.05  # frames slower than this are logged one by one
+const NO_PERF_HINT_FLAG := "no_perf_hint"
+const FRAME_TARGET_NS := 16_666_667  # 60 fps
+var _perf_hint: Object = null
+var _perf_hint_last := 0
 var _perf_log := false
 var _perf_next := 0.0
 var _perf_frames := 0
@@ -89,6 +94,7 @@ func _init() -> void:
 
 
 func _ready() -> void:
+	_start_perf_hints()
 	if _perf_log:
 		RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
 
@@ -148,8 +154,31 @@ func _process(_delta: float) -> void:
 			Input.parse_input_event(item)
 	if _pick_holder != null:
 		_update_pick()
+	if _perf_hint != null:
+		var now := Time.get_ticks_usec()
+		if _perf_hint_last > 0:
+			_perf_hint.reportFrame((now - _perf_hint_last) * 1000)
+		_perf_hint_last = now
 	if _perf_log:
 		_log_perf(_delta)
+
+
+## Android performance hints (the APK's Sts2PortPerf plugin): tells Android the game thread wants FRAME_TARGET_NS per
+## frame and how long each frame really took, so it raises that thread's CPU clock when frames run long. Without
+## it the main thread sat at 650-1,300 MHz of 2,600 during combat animations. A "no_perf_hint" file turns it off.
+func _start_perf_hints() -> void:
+	if not Engine.has_singleton("Sts2PortPerf"):
+		print("[sts2port] Performance hints: plugin not in this APK")
+		return
+	if FileAccess.file_exists(_main_pack_dir().path_join(NO_PERF_HINT_FLAG)):
+		print("[sts2port] Performance hints: off (", NO_PERF_HINT_FLAG, " flag)")
+		return
+	var plugin := Engine.get_singleton("Sts2PortPerf")
+	if plugin.startSession(FRAME_TARGET_NS):
+		_perf_hint = plugin
+		print("[sts2port] Performance hints: on")
+	else:
+		print("[sts2port] Performance hints: not supported on this device")
 
 
 ## One line per PERF_LOG_SEC: average fps, worst frame, CPU process time, memory and video memory.
