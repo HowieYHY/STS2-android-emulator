@@ -51,6 +51,11 @@ EXTRA_SETTINGS = {
     # The game never sets an orientation, so Godot's default (fixed landscape) replaced the APK's and the screen
     # wouldn't turn 180°. 4 = SCREEN_SENSOR_LANDSCAPE: both landscape directions, following the phone's auto-rotate.
     "display/window/handheld/orientation": pcklib.variant_int(4),
+    # Godot keeps file logging off on phones, so a crash left nothing behind (issue #6: SIGABRT in the foreground,
+    # no tombstone). Log to the app's external files folder, where adb (scripts/crash-report.ps1) can read it.
+    "debug/file_logging/enable_file_logging": pcklib.variant_bool(True),
+    "debug/file_logging/log_path": pcklib.variant_string(
+        "/storage/emulated/0/Android/data/com.howieyhy.sts2port/files/logs/godot.log"),
 }
 PATCHER_PROJECT = os.path.join(REPO, "tools", "Sts2Patcher", "Sts2Patcher.csproj")
 PATCHER_DLL = os.path.join(REPO, "tools", "Sts2Patcher", "bin", "Release", "net9.0", "Sts2Patcher.dll")

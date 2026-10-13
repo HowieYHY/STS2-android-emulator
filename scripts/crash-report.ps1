@@ -9,6 +9,7 @@
     dropbox.txt     Android's crash records: Java crashes, native crashes and tombstones, ANRs
     crash-log.txt   logcat's crash buffer
     log.txt         the last 20,000 lines of logcat (the game logs everything there)
+    game-logs\      the game's own log files, one per session (the newest five), including the session that crashed
   Nothing on the phone is changed.
 
 .EXAMPLE
@@ -40,6 +41,7 @@ $dropbox = foreach ($tag in "data_app_crash", "data_app_native_crash", "SYSTEM_T
 Set-Content (Join-Path $OutDir "dropbox.txt") -Encoding utf8 -Value $dropbox
 Set-Content (Join-Path $OutDir "crash-log.txt") -Encoding utf8 -Value (Invoke-Adb logcat -b crash -d)
 Set-Content (Join-Path $OutDir "log.txt") -Encoding utf8 -Value (Invoke-Adb logcat -d -t 20000)
+Invoke-Adb pull "/storage/emulated/0/Android/data/$Package/files/logs" (Join-Path $OutDir "game-logs") | Out-Null
 
 $reasons = Select-String -Path (Join-Path $OutDir "exit-info.txt") -Pattern "reason=" | Select-Object -First 5
 Write-Host "Saved to $OutDir"

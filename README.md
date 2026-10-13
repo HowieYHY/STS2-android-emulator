@@ -51,8 +51,11 @@ Game build used for these device checks: **STS2 v0.111.0**, commit `41cef1ea`.
 ## Emulator verification (13 October 2026): touch fixes for issues #1-#5
 
 Deployed to the Pixel 9a the same day: APK 0.1.1 (the v0.1.1 release) and the overlay with `port_loader.gd`, from
-STS2 v0.111.0 (`41cef1ea`). It loads the port code from the APK and reaches the menu with the saved run intact; the
-fixes below haven't been tried by hand on the phone yet. Tested on an Android emulator: an API 34 x86_64 Google APIs image (runs the arm64 APK
+STS2 v0.111.0 (`41cef1ea`). It loads the port code from the APK and reaches the menu with the saved run intact. Then
+retested #1-#5 on the phone with the dev console (on Profile 2, so the owner's run was untouched): three 13-tap
+shop bursts bought nothing; the tick sits at the normal confirm spot and bought exactly the inspected card; tick to
+"obtained" 114 ms; hand-card taps don't pick cards up, dragging plays them; event and Ancient options are chosen on
+tap and a long-press only highlights. Tested first on an Android emulator: an API 34 x86_64 Google APIs image (runs the arm64 APK
 through Android's ARM translation) with the Pixel 9a's 1080x2424 screen, the 0.1.0 APK, and packs built from
 **STS2 v0.111.0**, commit `41cef1ea`. Each change was A/B-tested against the previous overlay on the same screen.
 
@@ -179,8 +182,12 @@ Applied to a copy with Mono.Cecil; each one checks the code shape and fails loud
 | Fullscreen only | The Null platform reported `SupportedWindowMode.Any`; unticking Fullscreen on a phone left the game windowed under the system bars with touch offset (taps hit the wrong control, so it couldn't be ticked again). `NullPlatformUtilStrategy.GetSupportedWindowMode()` now returns `FullscreenOnly`, the game's own console mode: fullscreen is forced and the tickbox hidden. |
 
 ## Known issues
-- A crash after beating the Act 1 boss (issue #6), not reproduced on the emulator. After a crash, plug the phone
-  in and run `scripts\crash-report.ps1`; Android keeps why the app ended (crash, native crash, low-memory kill).
+- A crash after beating the Act 1 boss (issue #6, 13 Oct 02:19, on the 0.1.0 overlay): Android recorded it as
+  SIGABRT in the foreground at 2.8 GB RSS, with no tombstone or dump, and the game had no log file (Godot keeps file
+  logging off on phones). Not reproduced on the emulator or on the phone with 0.1.1 (boss, rewards, Act 2 map,
+  Ancient, an Act 2 fight). The overlay now logs to `files/logs/godot.log` on the phone (newest five sessions), so
+  after another crash `scripts\crash-report.ps1` collects the game's own log of that session. The two LOW_MEMORY
+  exits in the same record were Android reclaiming the game while it was in the background (normal).
 - Settings → Language: the two Chinese entries (中文, 繁體中文) are drawn with white blocks over them in the
   list (Japanese and Korean are fine). Not investigated yet; check whether Chinese text in-game is affected.
 - Rooms entered with the dev console (`room treasure`...) aren't part of the saved map: after a restart the run

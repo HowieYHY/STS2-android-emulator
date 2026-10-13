@@ -79,7 +79,7 @@ Last emulator-tested game build: **v0.111.0**, commit `41cef1ea`, on **13 Octobe
 issues #1-#5).
 Phone deployment, 13 October 2026: APK **0.1.1** (code 2, hash matches the v0.1.1 release) and an overlay with
 `port_loader.gd` built from the v0.111.0 reference installation; the game loads the port code from the APK and
-reaches the menu with the saved run intact. The #1-#5 fixes haven't been tried by hand on the phone yet.
+reaches the menu with the saved run intact. #1-#5 retested on the phone with the dev console the same day (Profile 2).
 
 - Re-read `<GameDir>/release_info.json` from the actual game installation used for applicable work; use its
   `version`, `commit` and `branch` fields. Read the game folder only; never modify it or copy game files into the repo.
@@ -206,6 +206,12 @@ scratchpad (re-create with
 - Each emulator run found a hole the previous fix missed (stale hover, then a pick decided before the inspect
   screen opened, then a fading popup). Keep logging every decision on the device until a burst test shows
   zero purchases over several runs, and A/B it against the old overlay before claiming it's fixed.
+- Issue #6's crash left nothing to diagnose: SIGABRT with no tombstone, and Godot keeps file logging off on phones.
+  `dumpsys activity exit-info` still had its time, reason and importance (100 = foreground; LOW_MEMORY at 400 is
+  just a background kill). The overlay now logs to the external files folder; read `crash-report.ps1`'s output first.
+- Test on the phone in an empty profile (Profile 2), never the owner's run: dev-console rooms and gold stick to the save.
+  `event <ID>` from the console before leaving a room left that room's Proceed layer catching taps; open events from
+  the map (then Back, Resume, close the map) or the result looks like a touch bug.
 - Game screens that "hide" by sliding off screen stay `visible` (NProceedButton). Checking `is_visible_in_tree()`
   alone lifted the tick above an invisible arrow (issue #3). Check the game's own enabled state and the on-screen rect.
 
