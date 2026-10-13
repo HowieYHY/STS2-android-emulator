@@ -272,7 +272,7 @@ performance measurements and remaining risks for the current state.
 | .NET SDK | 9.0.318 | winget `Microsoft.DotNet.SDK.9` |
 | JDK | Microsoft OpenJDK 17.0.20.1 (portable zip) | `D:\Tools\JDK17` (`JAVA_HOME`) |
 | Android SDK | cmdline-tools, platform-tools, build-tools 35.0.1, android-35, NDK 28.1.13356709, CMake 3.10.2 | `D:\Android\sdk` (`ANDROID_HOME`) |
-| Android emulator | emulator 37.2.12, system image `android-34;google_apis;x86_64`, AVD `sts2test` (1080x2424, 8 GB, host GPU) | `D:\Android\sdk`, AVD in `D:\Android\avd` (`ANDROID_AVD_HOME`) |
+| Android emulator (removed to save ~18 GB; reinstall when needed) | emulator + system image `android-34;google_apis;x86_64`, AVD `sts2test` (1080x2424, 8 GB, host GPU) | `D:\Android\sdk`, AVD in `D:\Android\avd` (`ANDROID_AVD_HOME`) |
 | Godot | 4.5.1-stable .NET (official, commit f62fdbde1) + export templates, self-contained (`._sc_`) | `D:\Tools\Godot` (templates in `editor_data\export_templates`) |
 
 The MSI build of the JDK ignores winget's `--location`, so use the portable zip to keep it on D:.
@@ -287,9 +287,13 @@ The MSI build of the JDK ignores winget's `--location`, so use the portable zip 
   `build-perf-plugin.ps1`, which puts it into the plugin's `.aar` and so into the APK's assets.
 - `scripts\crash-report.ps1` — after a crash, save Android's records of it (exit reasons, crash/tombstone
   records, logcat) from the phone to `%LOCALAPPDATA%\sts2port\crash-<time>`. Read-only on the phone.
-- Emulator: `set ANDROID_AVD_HOME=D:\Android\avd` then `D:\Android\sdk\emulator\emulator.exe -avd sts2test
-  -no-snapshot-save -gpu host`; install the APK with `adb install -r` and run `push-game.ps1` as for the phone.
-  The game reaches the menu in ~34 s (ARM translation). Good for touch and UI logic, not for performance.
+- Emulator (not installed; ~18 GB with the game packs). To set it up again: `sdkmanager --sdk_root=D:\Android\sdk
+  "emulator" "system-images;android-34;google_apis;x86_64"`, then with `ANDROID_AVD_HOME=D:\Android\avd`:
+  `avdmanager create avd -n sts2test -k "system-images;android-34;google_apis;x86_64" -d pixel_7` and set
+  `hw.lcd.width=1080`, `hw.lcd.height=2424`, `hw.lcd.density=420`, `hw.ramSize=8192`, `disk.dataPartition.size=24G`,
+  `hw.gpu.mode=host` in its config.ini. Start with `emulator -avd sts2test -no-snapshot-save -gpu host`, install the
+  APK with `adb install -r` and run `push-game.ps1` as for the phone. The game reaches the menu in ~34 s (ARM
+  translation). Good for touch and UI logic, not for performance.
 - `python -I tools/icon/make_icon.py` — regenerate the original launcher icon PNGs in `shell/icons/` (requires Pillow).
 - `scripts\dev-console.ps1 [-On|-Off] [-Restart] [-Run "cmd; cmd"]` — the game's dev console on the phone, for testing.
 - `python -I scripts/spikes/pck_list.py <pck> <outdir>` — list a pck's files and header (read-only).

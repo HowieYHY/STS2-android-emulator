@@ -44,9 +44,10 @@ Plan: `C:\Users\Admin\.claude\plans\i-want-to-make-atomic-glacier.md` (riskiest 
   finger is down and goes back to normal on release. Cards are played by dragging (issue #4).
 
 ## Testing on the emulator (user: when the phone isn't available, test on our own emulator first)
-- AVD `sts2test` (API 34 x86_64 Google APIs, 1080x2424 like the Pixel 9a) in `D:\Android\avd`; start with
-  `ANDROID_AVD_HOME=D:\Android\avd` and `emulator -avd sts2test -no-snapshot-save -gpu host`. The arm64 APK runs
-  through Android's ARM translation; the phone's dev-console workflow below works unchanged against it.
+- The emulator was removed on 13 Oct 2026 at the user's request (~18 GB); reinstall it when needed (user: "you can
+  download it the next time you need it") with the steps in README → Tools. It's an AVD `sts2test` (API 34 x86_64
+  Google APIs, 1080x2424 like the Pixel 9a); the arm64 APK runs through Android's ARM translation and the phone's
+  dev-console workflow below works unchanged against it.
 - Emulator results are emulator results: say so, and don't record them as phone-tested. Native crashes inside
   `libndk_translation` are the emulator's, not the game's. Don't judge performance on it.
 - A/B on the emulator by building the overlay from the old boot.gd. Write it with `cmd /c "git show ... > file"`:
