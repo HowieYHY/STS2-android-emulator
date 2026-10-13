@@ -5,7 +5,8 @@
 .DESCRIPTION
   The plugin is one Java class, so instead of a Gradle library project it is compiled with javac against the SDK's
   android.jar and Godot's own godot-lib (from the installed Android build template), then packaged by hand:
-  an .aar is a zip holding AndroidManifest.xml, classes.jar and R.txt.
+  an .aar is a zip holding AndroidManifest.xml, classes.jar and R.txt. It also carries assets/sts2port/port.pck
+  (the port's own code, scripts\build_port_pack.py), which Gradle merges into the APK's assets.
   Needs the Android build template (run scripts\build-apk.ps1 once).
 #>
 param(
@@ -37,6 +38,8 @@ if ($LASTEXITCODE -ne 0) { throw "javac failed" }
 if ($LASTEXITCODE -ne 0) { throw "jar failed" }
 Copy-Item (Join-Path $src "AndroidManifest.xml") "$work\aar\AndroidManifest.xml"
 Set-Content -Path "$work\aar\R.txt" -Value "" -NoNewline
+& python -I (Join-Path $here "build_port_pack.py") --out "$work\aar\assets\sts2port\port.pck"
+if ($LASTEXITCODE -ne 0) { throw "build_port_pack.py failed" }
 
 New-Item -ItemType Directory -Force (Split-Path $outAar) | Out-Null
 if (Test-Path $outAar) { Remove-Item $outAar }

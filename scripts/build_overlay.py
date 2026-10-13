@@ -39,6 +39,8 @@ GAME_STARTUP_FILES = [
 ]
 DROPPED_EXTENSIONS = ["res://addons/sentry/sentry.gdextension"]  # no Android build of Sentry's native lib
 BOOT_AUTOLOAD = ("autoload/AndroidBoot", "*res://android_boot/boot.gd")
+# Runs first and mounts the newer boot.gd shipped in the APK, if any (port_loader.gd); the overlay's copy is the fallback.
+LOADER_AUTOLOAD = ("autoload/AndroidPortLoader", "*res://android_boot/port_loader.gd")
 # Project settings the PC game never needed. quit_on_go_back defaults to true, so Android's Back button/gesture
 # closed the game instantly (losing progress since the last room); with it off, Back reaches the game's input map.
 # Swappy (Android frame pacing) is restarted when the game switches V-Sync mode at startup, and about one launch
@@ -128,7 +130,8 @@ def main():
     ext_list = pck.read(".godot/extension_list.cfg").decode("utf-8").splitlines()
     files[".godot/extension_list.cfg"] = ("\n".join(l for l in ext_list if l.strip() not in DROPPED_EXTENSIONS) + "\n").encode()
 
-    items = [(k, v) for k, v in pcklib.read_ecfg(pck.read("project.binary")) if k != BOOT_AUTOLOAD[0]]
+    items = [(k, v) for k, v in pcklib.read_ecfg(pck.read("project.binary"))
+             if k not in (BOOT_AUTOLOAD[0], LOADER_AUTOLOAD[0])]
     patched = []
     for k, v in items:
         if k == "sentry/config/dsn":
@@ -136,12 +139,14 @@ def main():
         patched.append((k, v))
     patched = [(k, v) for k, v in patched if k not in EXTRA_SETTINGS] + list(EXTRA_SETTINGS.items())
     patched.insert(0, (BOOT_AUTOLOAD[0], pcklib.variant_string(BOOT_AUTOLOAD[1])))
+    patched.insert(0, (LOADER_AUTOLOAD[0], pcklib.variant_string(LOADER_AUTOLOAD[1])))
     files["project.binary"] = pcklib.write_ecfg(patched)
     pck.close()
 
     # 4. Our own overlay files.
-    with open(os.path.join(REPO, "overlay", "android_boot", "boot.gd"), "rb") as f:
-        files["android_boot/boot.gd"] = f.read()
+    for name in ("boot.gd", "port_loader.gd"):
+        with open(os.path.join(REPO, "overlay", "android_boot", name), "rb") as f:
+            files["android_boot/" + name] = f.read()
 
     out_pck = os.path.join(out_abs, "overlay.pck")
     pcklib.write_pck(out_pck, files)

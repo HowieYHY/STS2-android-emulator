@@ -42,6 +42,23 @@ if (-not $template) {
 }
 $apk = Join-Path $out "sts2port.apk"
 if (Test-Path $apk) { Remove-Item $apk }
-& $Godot --headless --path $shell @template $mode "Android" "../build/sts2port.apk"
-if ($LASTEXITCODE -ne 0 -or -not (Test-Path $apk)) { throw "APK export failed" }
+# Godot can sit idle for 20+ minutes after Gradle has written the APK (waiting on the Gradle daemon). Stop it once the
+# APK has been unchanged for a minute; the APK is complete by then (Gradle signs before it copies it out).
+$godotArgs = @("--headless", "--path", "`"$((Resolve-Path $shell).Path)`"") + $template + @($mode, "Android", "../build/sts2port.apk")
+$proc = Start-Process -FilePath $Godot -ArgumentList $godotArgs -NoNewWindow -PassThru
+$null = $proc.Handle  # keeps the handle, so ExitCode is readable after it exits
+$stableSince = $null; $lastWrite = $null
+while (-not $proc.HasExited) {
+    Start-Sleep 5
+    if (Test-Path $apk) {
+        $write = (Get-Item $apk).LastWriteTimeUtc
+        if ($write -ne $lastWrite) { $lastWrite = $write; $stableSince = Get-Date }
+        elseif (((Get-Date) - $stableSince).TotalSeconds -ge 60) {
+            Write-Host "APK written; stopping the idle Godot export."
+            Stop-Process -Id $proc.Id -Force
+            break
+        }
+    }
+}
+if (-not (Test-Path $apk) -or ($proc.HasExited -and $proc.ExitCode -ne 0 -and $null -eq $stableSince)) { throw "APK export failed" }
 Write-Host "Built $(Resolve-Path $apk)"

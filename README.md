@@ -95,14 +95,40 @@ APK (this repo only)            phone: /sdcard/Android/data/com.howieyhy.sts2por
   Godot 4.5.1 engine              overlay.pck        <- built on your PC by push-game.ps1
   .NET (Mono) runtime                .NET assemblies: Android runtime (from the APK) + your sts2.dll
   launch args:                         (patched copy) + its managed deps
-    --main-pack .../overlay.pck      game's startup config, project.binary with our boot autoload first
-    --force-steam off                android_boot/boot.gd (mounts SlayTheSpire2.pck, fixes language)
+    --main-pack .../overlay.pck      game's startup config, project.binary with our autoloads first
+    --force-steam off                android_boot/port_loader.gd, android_boot/boot.gd (fallback copy)
+  port.pck (boot.gd) ------------> port.pck           <- copied out of the APK on every launch
                                   SlayTheSpire2.pck  <- your file, unchanged
                                   textures_astc.pck <- phone-format textures built on your PC (optional)
 ```
 
+`port_loader.gd` runs first and mounts `port.pck` over the overlay, so `boot.gd` (touch, ticks, settings fixes:
+the port's own code) comes from the installed APK. That's what lets an APK release update the port without the
+PC. If the APK has no `port.pck`, the overlay's own copy of `boot.gd` runs.
+
 Godot on Android loads C# assemblies from `res://.godot/mono/publish/arm64/` through its own file system,
 so they can live in a pack on the phone instead of inside the APK.
+
+## Updating the phone without the PC
+
+Fixes to the port's own code ship as GitHub releases of the APK (`scripts\release.ps1`). The repo is private, so
+the phone installs them with [Obtainium](https://github.com/ImranR98/Obtainium) and a read-only GitHub token:
+
+1. On GitHub: Settings → Developer settings → Fine-grained tokens → Generate. Repository access: only
+   `HowieYHY/STS2-android-emulator`; permissions: Contents **read-only**. Copy the token.
+2. Install Obtainium on the phone (from its GitHub releases or F-Droid). In Obtainium's Settings, paste the token
+   under the GitHub source's "Personal access token".
+3. Add App → `https://github.com/HowieYHY/STS2-android-emulator`. Obtainium finds the latest release's APK and
+   offers to install it over the existing app (same signing key: saves are kept).
+4. From then on Obtainium checks for new releases and installs them (one tap, or in the background on Android 12+
+   once it has installed the app itself).
+
+The game app itself stays offline (no INTERNET permission); only Obtainium downloads.
+
+Still done from the PC with `push-game.ps1`: a new STS2 version, changes to the sts2.dll patches
+(`tools/Sts2Patcher`), or overlay settings (`build_overlay.py`). Those packs come from your own game files and are
+never published. The first time, an overlay from `push-game.ps1` at or after the release that added
+`port_loader.gd` is needed, or the overlay's older copy of `boot.gd` keeps running.
 
 ## Android APK prerelease
 
@@ -246,6 +272,10 @@ The MSI build of the JDK ignores winget's `--location`, so use the portable zip 
 - `python -I scripts/test_touch.py` — parse-check the boot script and run the touch checks (coordinates, and
   picks/tick/hand-card timing against stand-ins for the game's nodes) in an isolated headless Godot project,
   without game files or saves. `--godot <path>` overrides the default engine path.
+- `scripts\release.ps1 -Notes "..."` — bump the APK version, build and check the signed APK (no game files,
+  carries `port.pck`), push the commit and tag, and publish the GitHub release that Obtainium installs.
+- `python -I scripts/build_port_pack.py --out <file>` — build `port.pck` (boot.gd + version stamp); run by
+  `build-perf-plugin.ps1`, which puts it into the plugin's `.aar` and so into the APK's assets.
 - `scripts\crash-report.ps1` — after a crash, save Android's records of it (exit reasons, crash/tombstone
   records, logcat) from the phone to `%LOCALAPPDATA%\sts2port\crash-<time>`. Read-only on the phone.
 - Emulator: `set ANDROID_AVD_HOME=D:\Android\avd` then `D:\Android\sdk\emulator\emulator.exe -avd sts2test

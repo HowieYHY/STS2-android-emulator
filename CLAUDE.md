@@ -14,11 +14,19 @@ Plan: `C:\Users\Admin\.claude\plans\i-want-to-make-atomic-glacier.md` (riskiest 
   game-file inspection/patching, overlay or texture builds/pushes, game testing, and compatibility documentation.
   Follow "Game version verification" below; the port's APK version and Godot version are separate.
 - Commit locally in small steps. **Do not push** unless asked.
+- **Releases** (user, 13 Oct 2026): fixes to the port's own code (`boot.gd`) reach the phone as GitHub releases of the
+  APK, installed by Obtainium. When the user wants fixes on the phone, run `scripts\release.ps1 -Notes "..."`;
+  it pushes the commit and tag (that push is part of the release). The APK and releases must never contain game
+  files (the script checks). Game-derived changes (sts2.dll patches, build_overlay.py settings, STS2 updates) still
+  need `push-game.ps1`; say so when a change needs it.
 - When there's a choice, give a recommendation, not a list. Be honest about blockers.
 
 ## Layout
 - `scripts/spikes/` — read-only analysis tools (pck lister/extractor, project.binary decoder).
-- `scripts/` — setup, build, `push-game.ps1 -GameDir "<path>"` (copies the user's pck + dll to the phone via adb).
+- `scripts/` — setup, build, `push-game.ps1 -GameDir "<path>"` (copies the user's pck + dll to the phone via adb),
+  `release.ps1` (APK release for Obtainium).
+- `overlay/android_boot/` — `port_loader.gd` (first autoload; mounts the APK's port.pck) and `boot.gd` (the port's
+  code; ships in the APK via `build_port_pack.py` → the plugin `.aar`, with a fallback copy in overlay.pck).
 - `shell/` — Godot 4.5.1 .NET Android project that loads the user's pck + sts2.dll at runtime.
 - `stubs/` — Steamworks.NET / Sentry / Vortice replacements.
 - `patches/` — Harmony patches (incl. touch input).
@@ -180,8 +188,8 @@ scratchpad (re-create with
   (README even claimed it did, from the APK manifest alone). Check the running activity
   (`dumpsys activity activities | grep requestedOrientation`), and set such settings in build_overlay EXTRA_SETTINGS.
 - Godot's Gradle export writes the APK in ~4 min, then `Godot ... --export-release` can sit idle for 20+ min
-  (waiting on the Gradle daemon). Run it in the background, watch build\sts2port.apk's timestamp and the manifest
-  (`aapt2 dump xmltree`), and stop the idle Godot process once the APK is there.
+  (waiting on the Gradle daemon). `build-apk.ps1` now stops Godot itself once the APK has been unchanged for a
+  minute (a release build takes ~90 s that way); check the result with `aapt2 dump badging`.
 - A small Android plugin doesn't need a Gradle library project: javac against android.jar + the template's
   godot-lib classes.jar, then zip AndroidManifest.xml + classes.jar + R.txt as the .aar (build-perf-plugin.ps1).
   PowerShell 5.1: wrap a file list in @(...) before splatting, or a single file splats as characters.

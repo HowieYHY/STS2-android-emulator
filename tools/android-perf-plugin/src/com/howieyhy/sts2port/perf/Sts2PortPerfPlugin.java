@@ -1,16 +1,27 @@
 package com.howieyhy.sts2port.perf;
 
+import android.app.Activity;
 import android.content.Context;
 import android.os.Build;
 import android.os.PerformanceHintManager;
 import android.os.Process;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 import org.godotengine.godot.Godot;
 import org.godotengine.godot.plugin.GodotPlugin;
 import org.godotengine.godot.plugin.UsedByGodot;
 
 /**
- * Android Dynamic Performance Framework (ADPF) hints for the game's main thread.
+ * The port's Android-side helpers (the singleton name is historical: it started with performance hints only).
+ *
+ * <p>{@link #installPortPack} hands the overlay the port's own code shipped in this APK; see port_loader.gd.
+ *
+ * <p>Android Dynamic Performance Framework (ADPF) hints for the game's main thread:
  *
  * Measured on a Pixel 9a: during combat animations the Godot main thread ran on the mid cores mostly at
  * 650-1,300 MHz of 2,600, so its ~60 ms frames were CPU-bound at a fraction of the available speed. Android only
@@ -43,6 +54,39 @@ public class Sts2PortPerfPlugin extends GodotPlugin {
         }
         session = manager.createHintSession(new int[] {Process.myTid()}, targetFrameNanos);
         return session != null;
+    }
+
+    /**
+     * Copies the port code pack (assets/sts2port/port.pck, added by build-perf-plugin.ps1) next to the game's packs,
+     * where Godot can mount it, and returns its path; "" if this APK has none or the copy failed. It's copied on every
+     * launch (a few KB), so it always matches the installed APK.
+     */
+    @UsedByGodot
+    public String installPortPack() {
+        Activity activity = getActivity();
+        File dir = activity == null ? null : activity.getExternalFilesDir(null);
+        if (dir == null) {
+            return "";
+        }
+        File out = new File(dir, "port.pck");
+        File tmp = new File(dir, "port.pck.tmp");
+        try (InputStream in = activity.getAssets().open("sts2port/port.pck");
+                OutputStream copy = new FileOutputStream(tmp)) {
+            byte[] buffer = new byte[64 * 1024];
+            for (int n; (n = in.read(buffer)) > 0; ) {
+                copy.write(buffer, 0, n);
+            }
+        } catch (IOException e) {
+            tmp.delete();
+            return "";
+        }
+        if (!tmp.renameTo(out)) {
+            out.delete();
+            if (!tmp.renameTo(out)) {
+                return "";
+            }
+        }
+        return out.getAbsolutePath();
     }
 
     /** Reports how long the last frame took on the calling thread. */

@@ -18,8 +18,9 @@ def main():
             '[display]\nwindow/size/viewport_width=2424\nwindow/size/viewport_height=1080\n',
             encoding="utf-8",
         )
-        shutil.copyfile(repo / "overlay/android_boot/boot.gd", project / "boot.gd")
-        subprocess.run([args.godot, "--headless", "--path", work, "--check-only", "--script", "boot.gd"], check=True)
+        for script in ("boot.gd", "port_loader.gd"):
+            shutil.copyfile(repo / "overlay/android_boot" / script, project / script)
+            subprocess.run([args.godot, "--headless", "--path", work, "--check-only", "--script", script], check=True)
         for test in ("touch_coordinates.gd", "touch_picks.gd"):
             shutil.copyfile(repo / "tools/tests" / test, project / test)
             subprocess.run([args.godot, "--headless", "--path", work, "--script", test], check=True, timeout=60)

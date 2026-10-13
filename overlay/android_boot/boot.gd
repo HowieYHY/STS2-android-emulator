@@ -1,5 +1,6 @@
 extends Node
-## First autoload of the port's overlay pack (inserted ahead of the game's own autoloads).
+## The port's main autoload, ahead of the game's own (port_loader.gd runs just before it and swaps in the copy of this
+## file that ships in the installed APK, so APK releases update it).
 ## 1. Mounts the user's SlayTheSpire2.pck, which sits next to overlay.pck on the phone, without letting
 ##    it replace the overlay's files (the overlay carries the Android-specific config and assemblies), then
 ##    textures_astc.pck (phone-format copies of the game's desktop textures) over it.
