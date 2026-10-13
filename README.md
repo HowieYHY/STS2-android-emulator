@@ -114,6 +114,21 @@ PC. If the APK has no `port.pck`, the overlay's own copy of `boot.gd` runs.
 Godot on Android loads C# assemblies from `res://.godot/mono/publish/arm64/` through its own file system,
 so they can live in a pack on the phone instead of inside the APK.
 
+## Setting it up on another phone (minimal)
+
+Needs: your own STS2 on Steam (Windows; tested with v0.111.0, others warn and may fail), a 64-bit Android phone
+(Android 7+, ~3 GB free), and on the PC Python 3, the .NET 9 SDK and Android platform-tools:
+`winget install Python.Python.3.12 Microsoft.DotNet.SDK.9 Google.PlatformTools`. Godot is optional.
+
+1. Phone: Settings → About phone → tap Build number 7 times; then Developer options → USB debugging on.
+2. Download the source (Code → Download ZIP, or `git clone`) and the newest release's `sts2port-…-arm64.apk`.
+3. Plug the phone in, accept "Allow USB debugging", and in the source folder run:
+   `powershell -ExecutionPolicy Bypass -File scripts\push-game.ps1 -GameDir "<Steam>\steamapps\common\Slay the Spire 2" -Apk <downloaded apk> -InstallApk`
+4. Open "Slay the Spire 2" on the phone (the first start takes ~20 s).
+
+Without Godot 4.5.1 .NET the phone texture pack is skipped (a warning says so): the game runs but uses more memory
+(tested on the Pixel 9a: menu reached normally, 2.1 GB). Updates then come through releases (see below).
+
 ## Updating the phone without the PC
 
 Fixes to the port's own code ship as GitHub releases of the APK (`scripts\release.ps1`). The repo is private, so
