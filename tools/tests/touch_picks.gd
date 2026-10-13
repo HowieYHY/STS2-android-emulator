@@ -1,0 +1,317 @@
+extends SceneTree
+## Pick/tick behaviour of the touch layer against stand-ins for the game's nodes (matched by script file name, like
+## boot.gd does), with no game or save files.
+
+class PickBoot extends "res://boot.gd":
+	var shown: Array = []  # every _show_take call
+	var buffered: Array = []
+
+	func _init() -> void:
+		process_mode = Node.PROCESS_MODE_ALWAYS
+		Input.emulate_mouse_from_touch = false
+
+	func _ready() -> void:
+		pass
+
+	## Android buffers parsed input until the next frame (headless handles it at once), so hover lags a frame behind.
+	func _send_input(event: InputEvent) -> void:
+		buffered.append(event)
+
+	func _process(delta: float) -> void:
+		var events := buffered
+		buffered = []
+		for event in events:
+			super._send_input(event)
+		super._process(delta)
+
+	func _show_take(show: bool) -> void:
+		shown.append(show)
+
+const ITEM_SOURCE := """extends Control
+var presses: Array = []  # [button index, pressed]
+func _gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton:
+		presses.append([event.button_index, event.pressed])
+"""
+## A shop item whose right click opens the inspect screen on release, like NMerchantSlot.OnPreview.
+const PREVIEW_SOURCE := """extends Control
+var presses: Array = []
+var screen: Control
+func _gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton:
+		presses.append([event.button_index, event.pressed])
+		if event.button_index == MOUSE_BUTTON_RIGHT and not event.pressed:
+			screen.visible = true
+			screen.mouse_filter = MOUSE_FILTER_STOP
+"""
+## An inspect screen whose backdrop closes it on a left release, like NInspectRelicScreen's backstop.
+const CLOSING_SOURCE := INSPECT_SOURCE + """
+func _gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
+		Close()
+"""
+const HAND_SOURCE := "extends Control\nvar IsInCardSelection := false\n"
+const PROCEED_SOURCE := "extends Control\nvar IsEnabled := true\n"
+const INSPECT_SOURCE := """extends Control
+var hide_in := -1
+func Close() -> void:
+	mouse_filter = MOUSE_FILTER_IGNORE
+	hide_in = 15  # frames, like the game's fade-out tween
+func _process(_delta: float) -> void:
+	if hide_in > 0:
+		hide_in -= 1
+		if hide_in == 0:
+			visible = false
+"""
+
+var boot: PickBoot
+var failures := 0
+
+
+func _initialize() -> void:
+	_run.call_deferred()
+
+
+func _run() -> void:
+	await process_frame
+	Input.use_accumulated_input = false
+	root.size = Vector2i(2424, 1080)  # the headless window starts at 64x64, where nothing could be hovered
+	boot = PickBoot.new()
+	root.add_child(boot)
+	root.notify_mouse_entered()
+	await _frames(2)
+	await _test_quick_second_tap()
+	await _test_tap_burst_follows_inspect()
+	await _test_tap_after_closing_tap()
+	await _test_hand_card_tap()
+	await _test_tick_lift()
+	await _test_take_through_closing_inspect()
+	print("Touch pick checks: ", "PASS" if failures == 0 else "%d FAILURES" % failures)
+	quit(0 if failures == 0 else 1)
+
+
+## Tap a plain button, then a shop item before the first tap's events have gone out. The second tap must be judged
+## by the shop item's own hover: inspect (right click), never a left click (which buys).
+func _test_quick_second_tap() -> void:
+	var plain := _box(Control.new(), Vector2(200, 200))
+	var item := _box(_scripted("NMerchantCard.cs", ITEM_SOURCE), Vector2(900, 200))
+	await _frames(2)
+	_tap_now(_centre(plain))
+	_tap_now(_centre(item))
+	await _frames(20)
+	_check(not item.presses.has([MOUSE_BUTTON_LEFT, true]), "a quick second tap on a shop item never left-clicks it")
+	_check(item.presses.has([MOUSE_BUTTON_RIGHT, true]), "a quick second tap on a shop item inspects it")
+	# The same with one frame between the taps.
+	item.presses.clear()
+	boot._clear_pick()
+	_tap_now(_centre(plain))
+	await process_frame
+	_tap_now(_centre(item))
+	await _frames(20)
+	_check(not item.presses.has([MOUSE_BUTTON_LEFT, true]), "a second tap one frame later never left-clicks the item")
+	_check(item.presses.has([MOUSE_BUTTON_RIGHT, true]), "a second tap one frame later inspects the item")
+	boot._clear_pick()
+	plain.queue_free()
+	item.queue_free()
+	await _frames(2)
+
+
+## Tap one shop item and, straight away, another. The first tap's inspect screen opens over both, so the second tap
+## lands on that screen: the item behind it must not become the pick (the tick would buy it while the first item is
+## on display).
+func _test_tap_burst_follows_inspect() -> void:
+	var game := _inspection_container()
+	var screen := _scripted("NInspectCardScreen.cs", INSPECT_SOURCE)
+	screen.size = Vector2(2424, 1080)
+	screen.visible = false
+	game.get_node("InspectionContainer").add_child(screen)
+	var first := _box(_scripted("NMerchantCard.cs", PREVIEW_SOURCE), Vector2(600, 300))
+	var second := _box(_scripted("NMerchantCard.cs", PREVIEW_SOURCE), Vector2(1300, 300))
+	first.screen = screen
+	second.screen = screen
+	root.move_child(game, -1)  # the inspect screen draws (and catches input) above the items
+	await _frames(2)
+	_tap_now(_centre(first))
+	_tap_now(_centre(second))
+	await _frames(30)
+	_check(first.presses.has([MOUSE_BUTTON_RIGHT, false]), "the first tap inspects the first item")
+	_check(screen.visible, "the first item's inspect screen is open")
+	_check(second.presses.is_empty(), "the second tap lands on the inspect screen, not the item behind it")
+	_check(boot._pick_holder != second, "the item behind the inspect screen never becomes the pick")
+	boot._clear_pick()
+	first.queue_free()
+	second.queue_free()
+	game.queue_free()
+	await _frames(2)
+
+
+## An open inspect screen's popup covers a shop item. Tap the screen's backdrop (the game closes it on that release
+## and fades it out), then tap the popup over the item. Whatever the timing, even as the popup vanishes, that tap must
+## inspect the item underneath, never click it (seen on the emulator: the click landed after the fade and bought it).
+func _test_tap_after_closing_tap() -> void:
+	var game := _inspection_container()
+	var screen := _scripted("NInspectCardScreen.cs", CLOSING_SOURCE)
+	screen.size = Vector2(2424, 1080)
+	game.get_node("InspectionContainer").add_child(screen)
+	var popup := Control.new()
+	popup.position = Vector2(800, 200)
+	popup.size = Vector2(500, 500)
+	screen.add_child(popup)
+	var item := _box(_scripted("NMerchantCard.cs", ITEM_SOURCE), Vector2(900, 300))
+	root.move_child(game, -1)
+	for gap in range(1, 19):
+		boot._clear_pick()
+		screen.visible = true
+		screen.mouse_filter = Control.MOUSE_FILTER_STOP
+		screen.hide_in = -1
+		await _frames(20)
+		_check(popup.mouse_filter == Control.MOUSE_FILTER_STOP, "the popup catches taps again after the screen hid")
+		item.presses.clear()
+		_tap_now(Vector2(200, 900))  # the backdrop
+		await _frames(gap)
+		_tap_now(_centre(item))
+		await _frames(40)
+		_check(not item.presses.has([MOUSE_BUTTON_LEFT, true]),
+			"a tap %d frames after the closing tap never clicks the item under the popup" % gap)
+		_check(item.presses.has([MOUSE_BUTTON_RIGHT, true]),
+			"a tap %d frames after the closing tap inspects the item under the popup" % gap)
+	boot._clear_pick()
+	item.queue_free()
+	game.queue_free()
+	await _frames(2)
+
+
+func _inspection_container() -> Node:
+	var game := Node.new()
+	game.name = "Game"
+	root.add_child(game)
+	var container := Node.new()
+	container.name = "InspectionContainer"
+	game.add_child(container)
+	return game
+
+
+## A tap on a card in the combat hand only hovers it, then nothing stays hovered. In a hand selection mode it clicks.
+func _test_hand_card_tap() -> void:
+	var hand := _scripted("NPlayerHand.cs", HAND_SOURCE)
+	hand.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hand.size = Vector2(2424, 1080)
+	root.add_child(hand)
+	var card := _scripted("NHandCardHolder.cs", ITEM_SOURCE)
+	card.position = Vector2(1100, 800)
+	card.size = Vector2(200, 260)
+	hand.add_child(card)
+	await _frames(2)
+	_touch_now(_centre(card), true)
+	await _frames(4)
+	_check(root.gui_get_hovered_control() == card, "the hand card is hovered while the finger is down")
+	_touch_now(_centre(card), false)
+	await _frames(16)
+	_check(card.presses.is_empty(), "a tap on a hand card in play sends no click")
+	_check(root.gui_get_hovered_control() == null, "the hand card is no longer hovered after the tap")
+	hand.IsInCardSelection = true
+	_tap_now(_centre(card))
+	await _frames(20)
+	_check(card.presses.has([MOUSE_BUTTON_LEFT, true]), "a tap on a hand card in a selection mode clicks it")
+	hand.queue_free()
+	await _frames(2)
+
+
+## The tick lifts only above a Proceed/Skip arrow that is enabled and on screen.
+func _test_tick_lift() -> void:
+	var tick := Control.new()
+	tick.position = Vector2(2200, 860)
+	tick.size = Vector2(160, 120)
+	root.add_child(tick)
+	boot._take_button = tick
+	var arrow := _scripted("NProceedButton.cs", PROCEED_SOURCE)
+	arrow.size = Vector2(200, 120)
+	arrow.position = Vector2(2190, 880)
+	root.add_child(arrow)
+	await process_frame
+	_check(boot._proceed_overlap() > 0.0, "the tick lifts above a shown arrow")
+	arrow.IsEnabled = false
+	_check(is_zero_approx(boot._proceed_overlap()), "the tick ignores a disabled arrow")
+	arrow.IsEnabled = true
+	arrow.position.x = 2424 + 40  # the game's hidden position: still visible, slid off the right edge
+	_check(is_zero_approx(boot._proceed_overlap()), "the tick ignores an arrow slid off screen")
+	boot._take_button = null
+	tick.queue_free()
+	arrow.queue_free()
+	await _frames(2)
+
+
+## Pressing the tick clicks the item at once, through the inspect screen that is still fading out, and the inspect
+## screen catches clicks again after it has hidden.
+func _test_take_through_closing_inspect() -> void:
+	var item := _box(_scripted("NMerchantRelic.cs", ITEM_SOURCE), Vector2(900, 400))
+	var game := _inspection_container()
+	var screen := _scripted("NInspectCardScreen.cs", INSPECT_SOURCE)
+	screen.size = Vector2(2424, 1080)
+	game.get_node("InspectionContainer").add_child(screen)
+	var backstop := Control.new()
+	backstop.size = Vector2(2424, 1080)
+	screen.add_child(backstop)
+	await _frames(2)
+	boot._pick_holder = item
+	boot._pick_pos = _centre(item)
+	boot._on_take()
+	await _frames(8)
+	_check(screen.visible, "the inspect screen is still fading out")
+	_check(item.presses.has([MOUSE_BUTTON_LEFT, true]) and item.presses.has([MOUSE_BUTTON_LEFT, false]),
+		"the tick clicks the item without waiting for the fade")
+	await _frames(12)
+	_check(not screen.visible, "the inspect screen hides at the end of its fade")
+	_check(backstop.mouse_filter == Control.MOUSE_FILTER_STOP, "the inspect backstop catches clicks again once hidden")
+	item.queue_free()
+	game.queue_free()
+	await _frames(2)
+
+
+## One script per file name and source: taking over a path again would clear it on the earlier script.
+var _scripts := {}
+func _scripted(file: String, source: String) -> Control:
+	var key := file + "\n" + source
+	if not _scripts.has(key):
+		var script := GDScript.new()
+		script.source_code = source
+		script.reload()
+		script.take_over_path("res://mock/%d/%s" % [_scripts.size(), file])
+		_scripts[key] = script
+	var control: Control = _scripts[key].new()
+	return control
+
+
+func _box(control: Control, pos: Vector2) -> Control:
+	control.position = pos
+	control.size = Vector2(200, 200)
+	root.add_child(control)
+	return control
+
+
+func _centre(control: Control) -> Vector2:
+	return control.position + control.size / 2
+
+
+## A finger down and up straight away, delivered to the touch layer this frame.
+func _tap_now(pos: Vector2) -> void:
+	_touch_now(pos, true)
+	_touch_now(pos, false)
+
+
+func _touch_now(pos: Vector2, pressed: bool) -> void:
+	var event := InputEventScreenTouch.new()
+	event.position = pos
+	event.pressed = pressed
+	boot._input(event)
+
+
+func _frames(count: int) -> void:
+	for i in range(count):
+		await process_frame
+
+
+func _check(ok: bool, message: String) -> void:
+	if not ok:
+		failures += 1
+		push_error(message)

@@ -29,8 +29,20 @@ Plan: `C:\Users\Admin\.claude\plans\i-want-to-make-atomic-glacier.md` (riskiest 
   (like mobile StS1).
 
 - **Every** selection (anything where a tap commits a choice: rewards, shop cards/relics/potions, event picks)
-  gets tap = inspect + a confirm tick. Don't narrow this to a few screens. Exception (user): the treasure room
-  chest relic is taken on tap, no tick (there's only one relic, nothing to choose between).
+  gets tap = inspect + a confirm tick. Don't narrow this to a few screens. Exceptions (user): the treasure room
+  chest relic is taken on tap, no tick (there's only one relic, nothing to choose between); event and Ancient
+  options are chosen on tap, no tick, and a long-press shows their info (issue #1).
+- In combat, tapping a hand card must not pick it up (the game's PC click-to-play): it only highlights while the
+  finger is down and goes back to normal on release. Cards are played by dragging (issue #4).
+
+## Testing on the emulator (user: when the phone isn't available, test on our own emulator first)
+- AVD `sts2test` (API 34 x86_64 Google APIs, 1080x2424 like the Pixel 9a) in `D:\Android\avd`; start with
+  `ANDROID_AVD_HOME=D:\Android\avd` and `emulator -avd sts2test -no-snapshot-save -gpu host`. The arm64 APK runs
+  through Android's ARM translation; the phone's dev-console workflow below works unchanged against it.
+- Emulator results are emulator results: say so, and don't record them as phone-tested. Native crashes inside
+  `libndk_translation` are the emulator's, not the game's. Don't judge performance on it.
+- A/B on the emulator by building the overlay from the old boot.gd. Write it with `cmd /c "git show ... > file"`:
+  PowerShell's `Set-Content -Encoding utf8` adds a BOM, and a BOM'd boot.gd gives a black screen.
 
 ## Testing on the phone (user's rule: use the dev console, don't play whole runs)
 - Get to the screen under test with the game's console instead of playing to it:
@@ -55,6 +67,8 @@ Current reference game: **v0.111.0**, commit `41cef1ea`, branch `v0.111.0`.
 Source: `D:\Steam\steamapps\common\Slay the Spire 2\release_info.json`; verified **13 October 2026**.
 Last phone-tested game build: **v0.111.0**, commit `41cef1ea`, on **13 October 2026**; the deployed overlay
 matches the pack rebuilt from the reference installation.
+Last emulator-tested game build: **v0.111.0**, commit `41cef1ea`, on **13 October 2026** (touch fixes for
+issues #1-#5; not yet on the phone).
 
 - Re-read `<GameDir>/release_info.json` from the actual game installation used for applicable work; use its
   `version`, `commit` and `branch` fields. Read the game folder only; never modify it or copy game files into the repo.
@@ -173,4 +187,14 @@ scratchpad (re-create with
   PowerShell 5.1: wrap a file list in @(...) before splatting, or a single file splats as characters.
 - Verify a push by its effect (file timestamp on the phone), never by a filtered command's silence: a
   `push-game.ps1` call from Git Bash failed quietly and the phone kept the old overlay.
+- Fast taps in the shop bought items (issue #2): the touch layer decided a tap from `gui_get_hovered_control()` while
+  the game hadn't yet processed earlier events. Android buffers parsed input until the next frame, so hover lags,
+  and the headless tests (which handle input at once) passed anyway. **Decide a tap only after everything sent has
+  been processed and hover has settled; never act on a hover that may predate a screen opening or closing.**
+  Headless tests must buffer input like Android (see `tools/tests/touch_picks.gd`) or they can't see these races.
+- Each emulator run found a hole the previous fix missed (stale hover, then a pick decided before the inspect
+  screen opened, then a fading popup). Keep logging every decision on the device until a burst test shows
+  zero purchases over several runs, and A/B it against the old overlay before claiming it's fixed.
+- Game screens that "hide" by sliding off screen stay `visible` (NProceedButton). Checking `is_visible_in_tree()`
+  alone lifted the tick above an invisible arrow (issue #3). Check the game's own enabled state and the on-screen rect.
 

@@ -9,7 +9,7 @@ class TouchBoot extends "res://boot.gd":
 	func _ready() -> void:
 		pass
 
-	func _tap(pos: Vector2) -> void:
+	func _tap(pos: Vector2, _tries := 0) -> void:
 		_click(MOUSE_BUTTON_LEFT, pos)
 
 class MouseObserver extends Node:

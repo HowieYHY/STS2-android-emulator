@@ -40,34 +40,45 @@ const LONG_PRESS_MSEC := 450
 const DRAG_SLOP_FRACTION := 0.02  # of the window height (about 22 px on a 1080p-tall screen)
 const HOVER_FRAMES := 2
 const HOLD_FRAMES := 3
+const TAP_RETRIES := 2  # times a tap hovers again when what's hovered can't be trusted
 
 enum Touch { NONE, PENDING, DRAGGING, LONG_PRESSED }
 var _touch := Touch.NONE
 var _touch_start := Vector2.ZERO
 var _touch_down_msec := 0
 var _touch_down_frame := 0
-var _last_mouse := Vector2.ZERO
+var _last_mouse := Vector2.ZERO  # where the newest queued motion puts the cursor
+var _sent_mouse := NO_HOVER  # where the cursor really is: the last motion delivered
+var _last_sent_frame := -1000  # when the last event was delivered
 var _queue: Array = []  # [due process frame, InputEvent or Callable], in order
 
-## Picks: cards, relics, potions and event options that are taken the moment they are clicked (rewards, choices,
-## treasure, shop, events), so a stray tap can't be undone. There a tap is a right click instead, which is the
+## Picks: cards, relics and potions that are taken the moment they are clicked (rewards, choices, shop), so a stray
+## tap can't be undone. There a tap is a right click instead, which is the
 ## game's own inspect (card/relic inspect screen, shop preview; otherwise the hover tooltip stays up), and the game's
 ## own confirm button slides in at its usual place on the right edge. The tick replays a real left click on the item, so the game takes it exactly as
 ## with a mouse. Screens that already have their own preview + confirm step (deck upgrade/remove/transform, bundles)
-## keep tap = click. Matched by the C# script file of the item, and of its screen when the item type is shared.
+## keep tap = click, and so do event options (owner's choice: a long-press shows their tooltip instead).
+## Matched by the C# script file of the item, and of its screen when the item type is shared.
 const PICK_ITEMS := {
 	"NGridCardHolder.cs": ["NCardRewardSelectionScreen.cs", "NChooseACardSelectionScreen.cs"],
 	"NRelicBasicHolder.cs": ["NChooseARelicSelection.cs"],
 	"NMerchantCard.cs": [],
 	"NMerchantRelic.cs": [],
 	"NMerchantPotion.cs": [],
-	"NEventOptionButton.cs": [],  # event and Ancient choices (e.g. the next act's relic); hover shows their tooltip
 }
-const INSPECT_SCREENS := ["NInspectCardScreen.cs", "NInspectRelicScreen.cs"]
+## A tap on a card in the combat hand would start the game's click-to-play (the card sticks to the cursor until a
+## target is clicked). On a phone cards are played by dragging, so a tap there only hovers the card while the finger
+## is down. The hand's own selection modes (choose a card to discard, upgrade...) still take taps as clicks.
+const HAND_CARD := "NHandCardHolder.cs"
+const HAND := "NPlayerHand.cs"
+const NO_HOVER := Vector2(-10000, -10000)  # cursor parked off screen, so nothing stays hovered
+## The game's inspect screens, each with the node whose mouse filter its Close() sets to Ignore (Open sets it to Stop).
+## A closing screen fades out for about 0.25 s, and its card/popup would still catch taps until it hides.
+const INSPECT_SCREENS := {"NInspectCardScreen.cs": ".", "NInspectRelicScreen.cs": "Backstop"}
+const CLICK_THROUGH_META := "sts2port_click_through"
 const INSPECTION_CONTAINER := "/root/Game/InspectionContainer"
 const CONFIRM_BUTTON_SCENE := "res://scenes/ui/confirm_button.tscn"
 const PROCEED_GAP := 12.0  # px between a lifted tick and the Proceed/Skip arrow below it
-const TAKE_WAIT_FRAMES := 120  # longest wait for a closing inspect screen to hide before clicking the item anyway
 var _pick_holder: Control = null
 var _pick_pos := Vector2.ZERO
 var _inspect_was_open := false
@@ -145,6 +156,7 @@ func _process(_delta: float) -> void:
 	if _touch == Touch.PENDING and Time.get_ticks_msec() - _touch_down_msec >= LONG_PRESS_MSEC:
 		_touch = Touch.LONG_PRESSED
 		_click(MOUSE_BUTTON_RIGHT, _touch_start)
+	_let_closing_screens_through()
 	var frame := _frame()
 	while not _queue.is_empty() and _queue[0][0] <= frame:
 		var item = _queue.pop_front()[1]
@@ -213,8 +225,10 @@ func _on_touch_down(pos: Vector2) -> void:
 	_touch = Touch.PENDING
 	_touch_start = pos
 	_touch_down_msec = Time.get_ticks_msec()
-	_touch_down_frame = _frame()
-	_enqueue(_motion(pos, 0), _frame())
+	# The frame the cursor actually gets there: it waits behind a previous tap's queued events, and hover only
+	# settles HOVER_FRAMES after that. Timing from the touch itself let a quick second tap be judged by the first
+	# tap's hover (a shop item was then clicked, i.e. bought, instead of inspected).
+	_touch_down_frame = _enqueue(_motion(pos, 0), _frame())
 
 
 func _on_touch_drag(pos: Vector2) -> void:
@@ -240,17 +254,69 @@ func _on_touch_up(pos: Vector2, canceled: bool) -> void:
 	_touch = Touch.NONE
 
 
-## Press after the hover delay, hold, release.
+## Hover (if the cursor isn't there yet), press, hold, release. The click goes ahead of anything newer touches have
+## queued, and those wait until it has landed: a quick next tap must be judged by what this click opened (e.g. the
+## inspect screen). Otherwise a burst of taps left the tick on one shop item while another one was on display.
 func _click(button: MouseButton, pos: Vector2) -> void:
 	var mask := MOUSE_BUTTON_MASK_LEFT if button == MOUSE_BUTTON_LEFT else MOUSE_BUTTON_MASK_RIGHT
-	var press_frame := maxi(_touch_down_frame + HOVER_FRAMES, _frame())
+	var later := _queue
+	_queue = []
+	var press_frame := _frame()
+	if _sent_mouse != pos:
+		press_frame = _enqueue(_motion(pos, 0), _frame()) + HOVER_FRAMES
 	_enqueue(_button(button, true, pos, mask), press_frame)
-	_enqueue(_button(button, false, pos, 0), press_frame + HOLD_FRAMES)
+	_append_delayed(later, _enqueue(_button(button, false, pos, 0), press_frame + HOLD_FRAMES) + 1)
+
+
+## Run a callable ahead of everything queued, on frame `due`; the rest waits behind it.
+func _run_first(item: Callable, due: int) -> void:
+	var later := _queue
+	_queue = []
+	_append_delayed(later, _enqueue(item, due))
+
+
+## Put back events taken out of the queue, no earlier than frame `from` and keeping their spacing.
+func _append_delayed(later: Array, from: int) -> void:
+	if later.is_empty():
+		return
+	var delay := maxi(0, from - later[0][0])
+	if _touch_down_frame >= later[0][0]:
+		_touch_down_frame += delay  # the current touch's hover is among the delayed events
+	for item in later:
+		item[0] += delay
+		_queue.append(item)
 
 
 ## A tap, run once hover has settled: inspects on pick screens, clicks everywhere else.
-func _tap(pos: Vector2) -> void:
+func _tap(pos: Vector2, tries := 0) -> void:
+	# Decide only once the game has seen everything sent so far: a click that just went out may still close an
+	# inspect screen and uncover a shop item, and a plain click decided before that would buy the item.
+	var settled := _last_sent_frame + HOVER_FRAMES
+	if _frame() < settled:
+		_run_first(_tap.bind(pos, tries), settled)
+		return
 	var hovered := get_viewport().gui_get_hovered_control()
+	# Hover can be stale: none at all when the cursor moved in the same frame as a click's release, or a closing
+	# inspect screen (it lets taps through now). Hover again and decide then; if still unsure, do nothing rather than
+	# risk a plain click on a shop item.
+	var closing := false
+	for screen in _inspect_screens():
+		closing = closing or (_within(hovered, screen) and _closing(screen))
+	if closing or hovered == null or not _under(hovered, pos):
+		if tries < TAP_RETRIES:
+			var later := _queue
+			_queue = []
+			var hovered_at := _enqueue(_motion(pos, 0), _frame()) + HOVER_FRAMES
+			_append_delayed(later, _enqueue(_tap.bind(pos, tries + 1), hovered_at))
+			return
+		if closing:
+			_clear_pick()
+			return
+	if _is_hand_card_in_play(hovered):
+		_clear_pick()
+		if _last_mouse == pos:  # unless a newer touch already moved the cursor
+			_enqueue(_motion(NO_HOVER, 0), _frame())
+		return
 	var holder := _pick_target(hovered)
 	if holder == null:
 		# Taps on the take button or inside an open inspect screen keep the pick; _update_pick notices when the
@@ -287,6 +353,27 @@ func _pick_target(control: Control) -> Control:
 	return null
 
 
+## Whether pos (viewport coordinates) is inside the control, which may be scaled or rotated (hand cards).
+func _under(control: Control, pos: Vector2) -> bool:
+	var local := control.get_global_transform_with_canvas().affine_inverse() * pos
+	return Rect2(Vector2.ZERO, control.size).has_point(local)
+
+
+## True for a card in the combat hand while the hand is in normal play (see HAND_CARD). Unknown states count as
+## selection, so a tap still clicks.
+func _is_hand_card_in_play(control: Control) -> bool:
+	var node: Node = control
+	var on_card := false
+	while node != null:
+		var file := _script_file(node)
+		if file == HAND_CARD:
+			on_card = true
+		elif file == HAND:
+			return on_card and node.get("IsInCardSelection") == false
+		node = node.get_parent()
+	return false
+
+
 ## The game's inspect screens. It creates them on first use, under this container, so look them up each time.
 func _inspect_screens() -> Array:
 	var found := []
@@ -300,9 +387,22 @@ func _inspect_screens() -> Array:
 
 func _inspect_open() -> Control:
 	for screen in _inspect_screens():
-		if screen.visible:
+		if screen.visible and not _closing(screen):
 			return screen
 	return null
+
+
+func _closing(screen: Control) -> bool:
+	var mark := screen.get_node_or_null(INSPECT_SCREENS[_script_file(screen)]) as Control
+	return screen.visible and mark != null and mark.mouse_filter == Control.MOUSE_FILTER_IGNORE
+
+
+## A closing inspect screen lets taps through at once, so nothing is decided (or clicked) against a screen that is
+## about to vanish. A plain click on its popup was delivered just after it hid and bought the shop item underneath.
+func _let_closing_screens_through() -> void:
+	for screen in _inspect_screens():
+		if _closing(screen) and not screen.has_meta(CLICK_THROUGH_META):
+			_click_through(screen)
 
 
 func _update_pick() -> void:
@@ -337,15 +437,19 @@ func _show_take(show: bool) -> void:
 
 ## Some screens also show the game's Proceed/Skip arrow in the same corner as the confirm button (seen in the treasure
 ## room before it lost its tick; kept as a guard for any other screen that does the same).
-## Returns how far to lift the tick so it sits just above any visible one. Only the vertical extent is compared:
-## the tick slides in horizontally, so its x isn't final yet.
+## Returns how far to lift the tick so it sits just above any shown one. Only the vertical extent is compared:
+## the tick slides in horizontally, so its x isn't final yet. A disabled arrow stays visible but slides off the right
+## edge, so it only counts while enabled and on screen; counting those lifted the tick for nothing (too high).
 func _proceed_overlap() -> float:
 	var tick := _take_button.get_global_rect()  # in the tick layer's own space, i.e. before any lift
+	var screen := get_viewport().get_visible_rect()
 	var lift := 0.0
 	for button in _find_all_by_script(get_tree().root, "NProceedButton.cs", []):
-		if button is Control and button.is_visible_in_tree():
+		if button is Control and button.is_visible_in_tree() and button.get("IsEnabled") != false:
 			var xform: Transform2D = button.get_global_transform_with_canvas()  # screen space, incl. its layer
 			var arrow := Rect2(xform.origin, button.size * xform.get_scale())
+			if arrow.position.x >= screen.end.x:
+				continue
 			if tick.position.y < arrow.end.y and arrow.position.y < tick.end.y:
 				lift = maxf(lift, tick.end.y - arrow.position.y + PROCEED_GAP)
 	return lift
@@ -369,18 +473,39 @@ func _on_take(_button = null) -> void:
 	var screen := _inspect_open()
 	if screen != null:
 		screen.call("Close")  # fades out first; it only hides at the end of its tween
-	_click_when_clear(pos, TAKE_WAIT_FRAMES)
-
-
-## A real left click on the item once no inspect screen covers it: hover, press, hold, release.
-func _click_when_clear(pos: Vector2, frames_left: int) -> void:
-	if _inspect_open() != null and frames_left > 0:
-		_enqueue(_click_when_clear.bind(pos, frames_left - 1), _frame() + 1)
-		return
-	var start := _frame()
-	_enqueue(_motion(pos, 0), start)
+		_let_closing_screens_through()
+	# A real left click on the item: hover, press, hold, release.
+	var start := _enqueue(_motion(pos, 0), _frame())
 	_enqueue(_button(MOUSE_BUTTON_LEFT, true, pos, MOUSE_BUTTON_MASK_LEFT), start + HOVER_FRAMES)
 	_enqueue(_button(MOUSE_BUTTON_LEFT, false, pos, 0), start + HOVER_FRAMES + HOLD_FRAMES)
+
+
+## Let clicks through a closing inspect screen and restore its mouse filters once it's hidden. Waiting for the fade
+## instead made the tick feel slow.
+func _click_through(screen: Control) -> void:
+	screen.set_meta(CLICK_THROUGH_META, true)
+	var saved := []
+	for control in _find_controls(screen, []):
+		if control.mouse_filter != Control.MOUSE_FILTER_IGNORE:
+			saved.append([control, control.mouse_filter])
+			control.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	screen.visibility_changed.connect(_restore_mouse_filters.bind(screen, saved), CONNECT_ONE_SHOT)
+
+
+func _restore_mouse_filters(screen: Control, saved: Array) -> void:
+	if is_instance_valid(screen):
+		screen.remove_meta(CLICK_THROUGH_META)
+	for entry in saved:
+		if is_instance_valid(entry[0]):
+			entry[0].mouse_filter = entry[1]
+
+
+func _find_controls(node: Node, found: Array) -> Array:
+	if node is Control:
+		found.append(node)
+	for child in node.get_children():
+		_find_controls(child, found)
+	return found
 
 
 func _within(node: Node, ancestor: Node) -> bool:
@@ -392,11 +517,12 @@ func _script_file(node: Node) -> String:
 	return script.resource_path.get_file() if script != null else ""
 
 
-## Events keep their order: an event is never due before the one queued ahead of it.
-func _enqueue(event: Variant, due_frame: int) -> void:  # InputEvent, or Callable run on that frame
+## Events keep their order: an event is never due before the one queued ahead of it. Returns the frame it's due.
+func _enqueue(event: Variant, due_frame: int) -> int:  # InputEvent, or Callable run on that frame
 	if not _queue.is_empty():
 		due_frame = maxi(due_frame, _queue[-1][0])
 	_queue.append([due_frame, event])
+	return due_frame
 
 
 func _frame() -> int:
@@ -407,6 +533,9 @@ func _frame() -> int:
 ## them again. Undo that conversion before sending mouse events, including letterbox offsets and scaling.
 ## Convert at delivery time so queued events use the current aspect ratio; keep Input's button state updated.
 func _send_input(event: InputEvent) -> void:
+	_last_sent_frame = _frame()
+	if event is InputEventMouseMotion:
+		_sent_mouse = event.position
 	if event is InputEventMouse:
 		var window_event: InputEventMouse = event.xformed_by(get_viewport().get_final_transform())
 		# Mouse xformed_by transforms position/relative, but leaves global_position unchanged.

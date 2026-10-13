@@ -48,6 +48,32 @@ Game build used for these device checks: **STS2 v0.111.0**, commit `41cef1ea`.
   drags, long presses, mouse-button state and queued events during a transform change; the original code
   fails these checks and the fix passes.
 
+## Emulator verification (13 October 2026): touch fixes for issues #1-#5
+
+Tested on an Android emulator, not yet on the phone: an API 34 x86_64 Google APIs image (runs the arm64 APK
+through Android's ARM translation) with the Pixel 9a's 1080x2424 screen, the 0.1.0 APK, and packs built from
+**STS2 v0.111.0**, commit `41cef1ea`. Each change was A/B-tested against the previous overlay on the same screen.
+
+- **#2 Fast taps in the shop bought items.** Three timing holes in the touch layer: a second tap judged by the first
+  tap's hover; a tap decided before the previous tap's inspect screen had opened (the tick then bought a different
+  item from the one on display); and a tap on an inspect screen's popup while it faded out, delivered after it hid
+  (a plain click on the shop item underneath). Taps are now decided only after earlier clicks have landed and hover
+  has settled. A closing inspect screen lets taps through at once, and a tap whose hover can't be trusted hovers
+  again (or does nothing). Three 13-tap bursts across shop items: old overlay spent 306 gold, new overlay none.
+- **#3 Tick too high.** The tick lifted itself above Proceed/Skip arrows that were disabled and slid off screen.
+  It now sits at the game's own confirm position unless an enabled arrow is on screen there.
+- **#5 Tick slow.** The tick waited for the inspect screen's 0.25 s fade before clicking. It now clicks through
+  it straight away: 498 ms -> 230 ms from tick to "obtained" on the emulator.
+- **#4 Tapping a hand card picked it up.** That was the game's PC click-to-play. In combat a tap on a hand card now
+  only hovers it while the finger is down; cards are played by dragging. The hand's own selection modes (choose a
+  card to upgrade, discard...) still take taps as clicks (tested with Armaments).
+- **#1 Event options** no longer use the tick (owner's choice): a tap chooses, a long-press highlights the option
+  and shows its tooltip.
+- #6 (a crash after the Act 1 boss) didn't reproduce on the emulator through the boss, rewards, act change and
+  Ancient. `scripts\crash-report.ps1` collects Android's records of the crash from the phone.
+- `python -I scripts/test_touch.py` covers all of the above with headless checks that mimic Android's input
+  buffering; the old code fails them and the new code passes.
+
 ## Android behaviour (tested on device)
 | Situation | Behaviour |
 |---|---|
@@ -57,8 +83,8 @@ Game build used for these device checks: **STS2 v0.111.0**, commit `41cef1ea`.
 | Screen shape | New installs default to the **Auto** aspect ratio, which fills a 20:9 screen without stretching. An existing choice in Settings is never overridden. Changing aspect ratios keeps touch aligned, including black bars; tested the dropdown in Auto, 4:3, 16:10, 16:9 and 21:9. |
 | Settings | Tested on device: checkboxes, arrow selectors, sliders (drag), dropdowns, list scrolling (drag), Credits, Back closes screens. Fullscreen is forced and its tickbox hidden (Sts2Patcher "Fullscreen only"); windowed mode put the game under the system bars with touch misaligned. |
 | Network | The APK has no INTERNET permission: no metrics, crash reports or multiplayer leave the phone. |
-| Touch | Own touch layer in `boot.gd` (Godot's touch-to-mouse emulation is off). Tap = left click, held a few frames so quick taps register; drag = left drag (cards onto enemies, map scrolling); long-press (0.45 s, finger still) = right click, which opens the inspect screen for a card and never picks it up. Works in the pause menu too. Wait for the hand to settle between card plays, otherwise a tap can pick up the wrong card. |
-| Picks (tick) | Anything taken the moment it's clicked: card rewards, choose-a-card/relic, shop cards, relics and potions, and event/Ancient options (incl. the next act's relic and Proceed). A tap is the game's own right-click inspect (inspect screen, or the tooltip) and the game's confirm tick slides in at the right edge; the tick replays a real left click on the item. Back or tapping elsewhere cancels. The treasure room's single relic is taken on tap (no tick). The tick moves above the Proceed/Skip arrow if a screen shows both. Screens with their own preview + confirm (deck upgrade/remove/transform, bundles) keep tap = click. |
+| Touch | Own touch layer in `boot.gd` (Godot's touch-to-mouse emulation is off). Tap = left click, held a few frames so quick taps register; drag = left drag (cards onto enemies, map scrolling); long-press (0.45 s, finger still) = right click, which opens the inspect screen for a card and never picks it up. Works in the pause menu too. In combat a tap on a hand card only hovers it while the finger is down (no click-to-play); in the hand's selection modes a tap selects. A tap is decided once earlier taps have landed and hover has settled, so fast taps can't act on the wrong control (emulator-tested). |
+| Picks (tick) | Anything taken the moment it's clicked: card rewards, choose-a-card/relic, shop cards, relics and potions. A tap is the game's own right-click inspect (inspect screen, or the tooltip) and the game's confirm tick slides in at the right edge; the tick replays a real left click on the item, straight through the closing inspect screen. Back or tapping elsewhere cancels. The treasure room's single relic is taken on tap, and event/Ancient options are chosen on tap (long-press shows their tooltip): no tick. The tick moves above the Proceed/Skip arrow only if that arrow is enabled and on screen. Screens with their own preview + confirm (deck upgrade/remove/transform, bundles) keep tap = click. |
 | Dev console | `scripts\dev-console.ps1 -On -Restart` turns on the game's full console (it creates a `dev_console` file next to the packs; the boot script then sets `full_console` in settings.save, and removes it again once the file is gone). `-Run "gold 200; room shop"` types commands into it; `-Off` turns it off. Used for testing instead of playing to a screen. |
 | Frame pacing | Swappy is turned off in the overlay: with it on, about one launch in three froze before the first frame. |
 
@@ -125,6 +151,8 @@ Applied to a copy with Mono.Cecil; each one checks the code shape and fails loud
 | Fullscreen only | The Null platform reported `SupportedWindowMode.Any`; unticking Fullscreen on a phone left the game windowed under the system bars with touch offset (taps hit the wrong control, so it couldn't be ticked again). `NullPlatformUtilStrategy.GetSupportedWindowMode()` now returns `FullscreenOnly`, the game's own console mode: fullscreen is forced and the tickbox hidden. |
 
 ## Known issues
+- A crash after beating the Act 1 boss (issue #6), not reproduced on the emulator. After a crash, plug the phone
+  in and run `scripts\crash-report.ps1`; Android keeps why the app ended (crash, native crash, low-memory kill).
 - Settings → Language: the two Chinese entries (中文, 繁體中文) are drawn with white blocks over them in the
   list (Japanese and Korean are fine). Not investigated yet; check whether Chinese text in-game is affected.
 - Rooms entered with the dev console (`room treasure`...) aren't part of the saved map: after a restart the run
@@ -209,13 +237,20 @@ performance measurements and remaining risks for the current state.
 | .NET SDK | 9.0.318 | winget `Microsoft.DotNet.SDK.9` |
 | JDK | Microsoft OpenJDK 17.0.20.1 (portable zip) | `D:\Tools\JDK17` (`JAVA_HOME`) |
 | Android SDK | cmdline-tools, platform-tools, build-tools 35.0.1, android-35, NDK 28.1.13356709, CMake 3.10.2 | `D:\Android\sdk` (`ANDROID_HOME`) |
+| Android emulator | emulator 37.2.12, system image `android-34;google_apis;x86_64`, AVD `sts2test` (1080x2424, 8 GB, host GPU) | `D:\Android\sdk`, AVD in `D:\Android\avd` (`ANDROID_AVD_HOME`) |
 | Godot | 4.5.1-stable .NET (official, commit f62fdbde1) + export templates, self-contained (`._sc_`) | `D:\Tools\Godot` (templates in `editor_data\export_templates`) |
 
 The MSI build of the JDK ignores winget's `--location`, so use the portable zip to keep it on D:.
 
 ## Tools
-- `python -I scripts/test_touch.py` — parse-check the boot script and test touch coordinates in an isolated
-  headless Godot project, without game files or saves. `--godot <path>` overrides the default engine path.
+- `python -I scripts/test_touch.py` — parse-check the boot script and run the touch checks (coordinates, and
+  picks/tick/hand-card timing against stand-ins for the game's nodes) in an isolated headless Godot project,
+  without game files or saves. `--godot <path>` overrides the default engine path.
+- `scripts\crash-report.ps1` — after a crash, save Android's records of it (exit reasons, crash/tombstone
+  records, logcat) from the phone to `%LOCALAPPDATA%\sts2port\crash-<time>`. Read-only on the phone.
+- Emulator: `set ANDROID_AVD_HOME=D:\Android\avd` then `D:\Android\sdk\emulator\emulator.exe -avd sts2test
+  -no-snapshot-save -gpu host`; install the APK with `adb install -r` and run `push-game.ps1` as for the phone.
+  The game reaches the menu in ~34 s (ARM translation). Good for touch and UI logic, not for performance.
 - `python -I tools/icon/make_icon.py` — regenerate the original launcher icon PNGs in `shell/icons/` (requires Pillow).
 - `scripts\dev-console.ps1 [-On|-Off] [-Restart] [-Run "cmd; cmd"]` — the game's dev console on the phone, for testing.
 - `python -I scripts/spikes/pck_list.py <pck> <outdir>` — list a pck's files and header (read-only).

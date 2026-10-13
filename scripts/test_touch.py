@@ -1,4 +1,4 @@
-"""Run the touch-coordinate regression checks in an isolated Godot project (no game files)."""
+"""Run the touch regression checks (coordinates, picks/tick) in an isolated Godot project (no game files)."""
 import argparse
 from pathlib import Path
 import shutil
@@ -19,9 +19,10 @@ def main():
             encoding="utf-8",
         )
         shutil.copyfile(repo / "overlay/android_boot/boot.gd", project / "boot.gd")
-        shutil.copyfile(repo / "tools/tests/touch_coordinates.gd", project / "test.gd")
         subprocess.run([args.godot, "--headless", "--path", work, "--check-only", "--script", "boot.gd"], check=True)
-        subprocess.run([args.godot, "--headless", "--path", work, "--script", "test.gd"], check=True, timeout=60)
+        for test in ("touch_coordinates.gd", "touch_picks.gd"):
+            shutil.copyfile(repo / "tools/tests" / test, project / test)
+            subprocess.run([args.godot, "--headless", "--path", work, "--script", test], check=True, timeout=60)
 
 
 if __name__ == "__main__":
