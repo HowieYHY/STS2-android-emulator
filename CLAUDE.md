@@ -40,6 +40,8 @@ Plan: `C:\Users\Admin\.claude\plans\i-want-to-make-atomic-glacier.md` (riskiest 
   gets tap = inspect + a confirm tick. Don't narrow this to a few screens. Exceptions (user): the treasure room
   chest relic is taken on tap, no tick (there's only one relic, nothing to choose between); event and Ancient
   options are chosen on tap, no tick, and a long-press shows their info (issue #1).
+- Settings that do nothing on Android are greyed, disabled and labelled "(not on Android)" (user, 13 Oct 2026), not
+  hidden; add new ones to `PC_ONLY_SETTINGS` in boot.gd. Controller settings stay (Bluetooth controllers work).
 - In combat, tapping a hand card must not pick it up (the game's PC click-to-play): it only highlights while the
   finger is down and goes back to normal on release. Cards are played by dragging (issue #4).
 

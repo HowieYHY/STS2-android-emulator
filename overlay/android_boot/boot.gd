@@ -80,6 +80,22 @@ const CLICK_THROUGH_META := "sts2port_click_through"
 const INSPECTION_CONTAINER := "/root/Game/InspectionContainer"
 const CONFIRM_BUTTON_SCENE := "res://scenes/ui/confirm_button.tscn"
 const PROCEED_GAP := 12.0  # px between a lifted tick and the Proceed/Skip arrow below it
+## Settings that do nothing on a phone (owner's request): shown greyed out and disabled, with a note on the label,
+## the way the game itself greys Language during a run. Matched by script file. Fullscreen is hidden by the game's
+## own fullscreen-only mode (Sts2Patcher).
+const PC_ONLY_SETTINGS := {
+	"NKeyboardOnlyModeTickbox.cs": "KeyboardOnlyModeHeader",  # its label sits in the Input panel, not in the row
+	"NDisplayDropdown.cs": "DisplaySelection",  # one screen; the dropdown is laid over its row, not inside it
+	"NResolutionDropdown.cs": "WindowedResolution",  # the game already disables these two (fullscreen only);
+	"NWindowResizeTickbox.cs": "",  # listed so they look like the other PC-only rows
+	"NBackgroundModeTickbox.cs": "",  # Limit FPS in Background: Android pauses the game in the background
+	"NUploadDataTickbox.cs": "",  # the APK has no INTERNET permission
+	"NOpenFeedbackScreenButton.cs": "",  # same
+}
+const PC_ONLY_NOTE := "  (not on Android)"
+const PC_ONLY_GREY := Color(0.55, 0.55, 0.55)
+const PC_ONLY_CHECK_FRAMES := 30  # how often to re-check: the game re-enables some controls (window changes)
+var _pc_only: Array = []
 var _pick_holder: Control = null
 var _pick_pos := Vector2.ZERO
 var _inspect_was_open := false
@@ -106,6 +122,7 @@ func _init() -> void:
 
 
 func _ready() -> void:
+	get_tree().node_added.connect(_on_node_added)
 	_start_perf_hints()
 	if _perf_log:
 		RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
@@ -167,6 +184,10 @@ func _process(_delta: float) -> void:
 			_send_input(item)
 	if _pick_holder != null:
 		_update_pick()
+	if not _pc_only.is_empty() and frame % PC_ONLY_CHECK_FRAMES == 0:
+		_pc_only = _pc_only.filter(func(n): return is_instance_valid(n))
+		for node in _pc_only:
+			_disable_pc_only(node)
 	if _perf_hint != null:
 		var now := Time.get_ticks_usec()
 		if _perf_hint_last > 0:
@@ -174,6 +195,48 @@ func _process(_delta: float) -> void:
 		_perf_hint_last = now
 	if _perf_log:
 		_log_perf(_delta)
+
+
+## node_added fires before the node's _ready, and the settings screen sets its labels in its own _ready (after its
+## children's), so wait for ready and then one more frame.
+func _on_node_added(node: Node) -> void:
+	if PC_ONLY_SETTINGS.has(_script_file(node)):
+		_pc_only.append(node)
+		node.ready.connect(func() -> void: _disable_pc_only.call_deferred(node), CONNECT_ONE_SHOT)
+
+
+func _disable_pc_only(node: Node) -> void:
+	if not is_instance_valid(node) or not node.is_inside_tree():
+		return
+	if node.get("IsEnabled") != false and node.has_method("Disable"):
+		node.call("Disable")
+	if node is CanvasItem:
+		node.modulate = PC_ONLY_GREY
+	var label := _pc_only_label(node)
+	if label == null and not node.has_meta("sts2port_no_label"):
+		node.set_meta("sts2port_no_label", true)
+		push_warning("[sts2port] No row label found for PC-only setting %s" % node.get_path())
+	if label != null:
+		label.modulate = PC_ONLY_GREY
+		if not label.text.ends_with(PC_ONLY_NOTE):  # the game re-localises labels (e.g. language change)
+			label.text += PC_ONLY_NOTE
+
+
+## The setting's row label: a "Label" child of the row the control sits in (see NSettingsScreen.LocHelper), or, for
+## controls laid out apart from their row, the row or label found by name in the same panel.
+func _pc_only_label(node: Node) -> RichTextLabel:
+	var name_hint: String = PC_ONLY_SETTINGS[_script_file(node)]
+	var parent := node.get_parent()
+	for i in range(3):
+		if parent == null:
+			break
+		var found: Node = parent.get_node_or_null("Label") if name_hint == "" else parent.find_child(name_hint, true, false)
+		if found != null and not found is RichTextLabel:
+			found = found.get_node_or_null("Label")
+		if found is RichTextLabel:
+			return found
+		parent = parent.get_parent()
+	return null
 
 
 ## Android performance hints (the APK's Sts2PortPerf plugin): tells Android the game thread wants FRAME_TARGET_NS per
