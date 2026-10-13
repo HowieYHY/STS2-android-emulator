@@ -129,6 +129,22 @@ Needs: your own STS2 on Steam (Windows; tested with v0.111.0, others warn and ma
 Without Godot 4.5.1 .NET the phone texture pack is skipped (a warning says so): the game runs but uses more memory
 (tested on the Pixel 9a: menu reached normally, 2.1 GB). Updates then come through releases (see below).
 
+No cable (Android 11+, PC and phone on the same Wi-Fi, or the phone on the PC's mobile hotspot): Developer options →
+Wireless debugging → "Pair device with pairing code", then `adb pair <ip:port> <code>` and
+`adb connect <ip:port shown at the top>` on the PC, and run step 3 as above. Not yet tested over Wi-Fi.
+
+## Possible future changes
+
+- **In-app setup, no PC tools (APK + copy two things).** A single APK with the game in it isn't an option: it would
+  redistribute the game, which this project never does. Instead the APK could do `push-game.ps1`'s work on the phone:
+  the user installs the release APK, copies `SlayTheSpire2.pck` and the game's `data_sts2_windows_x86_64` DLLs to
+  the phone by any means (Drive, Quick Share, USB file transfer), and the app asks for them on first launch
+  (Android file picker), checks the game version, patches `sts2.dll` and builds the overlay into its own folder.
+  No Python, .NET, adb or developer mode. Work: run Sts2Patcher (C#, Mono.Cecil) inside the app's .NET runtime,
+  port `build_overlay.py` to C#, add the picker; skip the ASTC texture pack (needs Godot's encoder). About a day
+  plus phone testing. Risks: patching on the phone is untested, the 1.9 GB copy is still needed once, and an STS2
+  update still needs a re-import. Deferred by the owner (13 Oct 2026); the Wi-Fi setup above covers "no cable".
+
 ## Updating the phone without the PC
 
 Fixes to the port's own code ship as GitHub releases of the APK (`scripts\release.ps1`). The repo is private, so
