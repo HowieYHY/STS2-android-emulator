@@ -50,7 +50,9 @@ Game build used for these device checks: **STS2 v0.111.0**, commit `41cef1ea`.
 
 ## Emulator verification (13 October 2026): touch fixes for issues #1-#5
 
-Tested on an Android emulator, not yet on the phone: an API 34 x86_64 Google APIs image (runs the arm64 APK
+Deployed to the Pixel 9a the same day: APK 0.1.1 (the v0.1.1 release) and the overlay with `port_loader.gd`, from
+STS2 v0.111.0 (`41cef1ea`). It loads the port code from the APK and reaches the menu with the saved run intact; the
+fixes below haven't been tried by hand on the phone yet. Tested on an Android emulator: an API 34 x86_64 Google APIs image (runs the arm64 APK
 through Android's ARM translation) with the Pixel 9a's 1080x2424 screen, the 0.1.0 APK, and packs built from
 **STS2 v0.111.0**, commit `41cef1ea`. Each change was A/B-tested against the previous overlay on the same screen.
 

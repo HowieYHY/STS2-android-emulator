@@ -76,7 +76,10 @@ Source: `D:\Steam\steamapps\common\Slay the Spire 2\release_info.json`; verified
 Last phone-tested game build: **v0.111.0**, commit `41cef1ea`, on **13 October 2026**; the deployed overlay
 matches the pack rebuilt from the reference installation.
 Last emulator-tested game build: **v0.111.0**, commit `41cef1ea`, on **13 October 2026** (touch fixes for
-issues #1-#5; not yet on the phone).
+issues #1-#5).
+Phone deployment, 13 October 2026: APK **0.1.1** (code 2, hash matches the v0.1.1 release) and an overlay with
+`port_loader.gd` built from the v0.111.0 reference installation; the game loads the port code from the APK and
+reaches the menu with the saved run intact. The #1-#5 fixes haven't been tried by hand on the phone yet.
 
 - Re-read `<GameDir>/release_info.json` from the actual game installation used for applicable work; use its
   `version`, `commit` and `branch` fields. Read the game folder only; never modify it or copy game files into the repo.
