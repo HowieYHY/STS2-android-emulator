@@ -91,7 +91,12 @@ const PC_ONLY_SETTINGS := {
 	"NBackgroundModeTickbox.cs": "",  # Limit FPS in Background: Android pauses the game in the background
 	"NUploadDataTickbox.cs": "",  # the APK has no INTERNET permission
 	"NOpenFeedbackScreenButton.cs": "",  # same
+	"NVSyncPaginator.cs": "",  # the phone's driver only has FIFO: Off and Adaptive fall back to On (Godot warns)
+	# Long Press Confirmations needs End Turn held down for 0.5 s; touch never holds the left button (a held finger
+	# is a right click), so with it on a turn couldn't be ended. Kept off as well as disabled (PC_ONLY_FORCE_OFF).
+	"NLongPressConfirmationTickbox.cs": "",
 }
+const PC_ONLY_FORCE_OFF := ["NLongPressConfirmationTickbox.cs"]
 const PC_ONLY_NOTE := "  (not on Android)"
 const PC_ONLY_GREY := Color(0.55, 0.55, 0.55)
 const PC_ONLY_CHECK_FRAMES := 30  # how often to re-check: the game re-enables some controls (window changes)
@@ -208,10 +213,17 @@ func _on_node_added(node: Node) -> void:
 func _disable_pc_only(node: Node) -> void:
 	if not is_instance_valid(node) or not node.is_inside_tree():
 		return
-	if node.get("IsEnabled") != false and node.has_method("Disable"):
-		node.call("Disable")
+	if _script_file(node) in PC_ONLY_FORCE_OFF and node.get("IsTicked") == true:
+		node.call("ForceToggleTick")  # the tickbox's own toggle, so the game saves the preference as off
+	# Controls without their own Disable (the arrow selectors) take taps through their buttons.
+	for control in [node] + _find_controls(node, []):
+		if control.get("IsEnabled") == true and control.has_method("Disable"):
+			control.call("Disable")
 	if node is CanvasItem:
 		node.modulate = PC_ONLY_GREY
+	if node is Control:
+		node.mouse_filter = Control.MOUSE_FILTER_IGNORE  # selectors also page on their own input (keys, controller)
+		node.focus_mode = Control.FOCUS_NONE
 	var label := _pc_only_label(node)
 	if label == null and not node.has_meta("sts2port_no_label"):
 		node.set_meta("sts2port_no_label", true)
@@ -280,9 +292,29 @@ func _log_perf(delta: float) -> void:
 			Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED) / 1048576,
 			Performance.get_monitor(Performance.OBJECT_COUNT),
 			Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)])
+		var volumes := _fmod_volumes()
+		if volumes != "":
+			print("[sts2port] fmod ", volumes)
 	_perf_next = now + PERF_LOG_SEC
 	_perf_frames = 0
 	_perf_worst_ms = 0.0
+
+
+## The game's FMOD volume controls (the Sound sliders end up here), so a test can check a slider reached the audio
+## engine. The FMOD addon has no output metering, so this is the volume FMOD applies, not what the speaker plays.
+func _fmod_volumes() -> String:
+	if not Engine.has_singleton("FmodServer"):
+		return ""
+	var fmod: Object = Engine.get_singleton("FmodServer")
+	var parts := []
+	for getter in ["get_all_vca", "get_all_buses", "get_all_bus"]:
+		if not fmod.has_method(getter):
+			continue
+		for item in fmod.call(getter):
+			if item is Object and item.has_method("get_volume"):
+				var path: String = item.call("get_path") if item.has_method("get_path") else str(item)
+				parts.append("%s=%.3f" % [path, item.call("get_volume")])
+	return " ".join(parts)
 
 
 func _on_touch_down(pos: Vector2) -> void:

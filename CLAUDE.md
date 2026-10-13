@@ -42,6 +42,7 @@ Plan: `C:\Users\Admin\.claude\plans\i-want-to-make-atomic-glacier.md` (riskiest 
   options are chosen on tap, no tick, and a long-press shows their info (issue #1).
 - Settings that do nothing on Android are greyed, disabled and labelled "(not on Android)" (user, 13 Oct 2026), not
   hidden; add new ones to `PC_ONLY_SETTINGS` in boot.gd. Controller settings stay (Bluetooth controllers work).
+  User: FPS Limit stays as is (values above 60 do nothing, but 24-60 work); no 120 Hz work, no long-press End Turn.
 - In combat, tapping a hand card must not pick it up (the game's PC click-to-play): it only highlights while the
   finger is down and goes back to normal on release. Cards are played by dragging (issue #4).
 
@@ -215,6 +216,10 @@ scratchpad (re-create with
 - Test on the phone in an empty profile (Profile 2), never the owner's run: dev-console rooms and gold stick to the save.
   `event <ID>` from the console before leaving a room left that room's Proceed layer catching taps; open events from
   the map (then Back, Resume, close the map) or the result looks like a touch bug.
+- A setting being on screen proves nothing: the user asked whether the remaining settings worked and they hadn't been
+  tried. VSync did nothing on the phone and Long Press Confirmations would have blocked End Turn. **Check each
+  setting by measuring its effect** (perf_log fps/vram, the `fmod` volume line, game log lines like "FPS Limit:"),
+  and put the user's values back afterwards: settings save on pause, so test values stick.
 - Game screens that "hide" by sliding off screen stay `visible` (NProceedButton). Checking `is_visible_in_tree()`
   alone lifted the tick above an invisible arrow (issue #3). Check the game's own enabled state and the on-screen rect.
 

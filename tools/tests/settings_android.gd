@@ -14,6 +14,13 @@ func Enable() -> void:
 	IsEnabled = true
 """
 
+const TICKBOX_SOURCE := CONTROL_SOURCE + """var IsTicked := false
+var toggles := 0
+func ForceToggleTick() -> void:
+	IsTicked = not IsTicked
+	toggles += 1
+"""
+
 var boot: SettingsBoot
 var failures := 0
 
@@ -71,7 +78,26 @@ func _run() -> void:
 	graphics.add_child(content)
 	var display := _scripted("NDisplayDropdown.cs")
 	graphics.add_child(display)
-	for node in [row, fast_row, panel, graphics]:
+	# VSync: a selector with no Disable of its own; its arrow buttons take the taps.
+	var vsync_row := Control.new()
+	var vsync_label := RichTextLabel.new()
+	vsync_label.name = "Label"
+	vsync_label.text = "VSync"
+	vsync_row.add_child(vsync_label)
+	var vsync := _scripted("NVSyncPaginator.cs", "extends Control\n")
+	vsync_row.add_child(vsync)
+	var arrow := _scripted("NSettingsPaginatorArrow.cs")
+	vsync.add_child(arrow)
+	# Long Press Confirmations, ticked: it must end up off as well as disabled.
+	var long_row := Control.new()
+	var long_label := RichTextLabel.new()
+	long_label.name = "Label"
+	long_label.text = "Long Press Confirmations"
+	long_row.add_child(long_label)
+	var long_press := _scripted("NLongPressConfirmationTickbox.cs", TICKBOX_SOURCE)
+	long_press.IsTicked = true
+	long_row.add_child(long_press)
+	for node in [row, fast_row, panel, graphics, vsync_row, long_row]:
 		root.add_child(node)
 	await _frames(3)
 	_check(tickbox.IsEnabled == false, "Limit FPS in Background is disabled")
@@ -81,6 +107,11 @@ func _run() -> void:
 	_check(header.text == "Keyboard-Only Mode" + boot.PC_ONLY_NOTE, "the Input panel's header carries the note")
 	_check(display.IsEnabled == false, "Display Selection is disabled")
 	_check(display_label.text == "Display Selection" + boot.PC_ONLY_NOTE, "the Display row, found by name, carries the note")
+	_check(arrow.IsEnabled == false, "the VSync selector's arrow buttons are disabled")
+	_check(vsync.mouse_filter == Control.MOUSE_FILTER_IGNORE, "the VSync selector ignores taps")
+	_check(vsync_label.text == "VSync" + boot.PC_ONLY_NOTE, "VSync carries the note")
+	_check(long_press.IsTicked == false and long_press.toggles == 1, "Long Press is switched off through its own toggle")
+	_check(long_press.IsEnabled == false, "Long Press is disabled")
 	_check(fast.IsEnabled and fast_label.text == "Fast Mode", "other settings are left alone")
 	# The game re-enables some controls and re-localises labels; the port puts them back, without doubling the note.
 	tickbox.Enable()
@@ -95,10 +126,10 @@ func _run() -> void:
 
 
 var _scripts := {}
-func _scripted(file: String) -> Control:
+func _scripted(file: String, source := CONTROL_SOURCE) -> Control:
 	if not _scripts.has(file):
 		var script := GDScript.new()
-		script.source_code = CONTROL_SOURCE
+		script.source_code = source
 		script.reload()
 		script.take_over_path("res://mock/%d/%s" % [_scripts.size(), file])
 		_scripts[file] = script
