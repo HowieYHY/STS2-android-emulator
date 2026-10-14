@@ -42,6 +42,8 @@ const DRAG_SLOP_FRACTION := 0.02  # of the window height (about 22 px on a 1080p
 const HOVER_FRAMES := 2
 const HOLD_FRAMES := 3
 const TAP_RETRIES := 2  # times a tap hovers again when what's hovered can't be trusted
+const DRAG_RELEASE_FRAMES := 2  # between a drag's last motion and its release (see _on_touch_up)
+const CARD_PLAY_SETTLE_FRAMES := 6  # after a drag's release, before a card play still running is cancelled
 
 enum Touch { NONE, PENDING, DRAGGING, LONG_PRESSED }
 var _touch := Touch.NONE
@@ -146,6 +148,8 @@ func _notification(what: int) -> void:
 	elif what == NOTIFICATION_APPLICATION_FOCUS_OUT:
 		if _touch == Touch.DRAGGING:
 			_enqueue(_button(MOUSE_BUTTON_LEFT, false, _last_mouse, 0), _frame())
+			_touch = Touch.NONE
+			_enqueue(_end_card_play, _frame() + CARD_PLAY_SETTLE_FRAMES)
 		_touch = Touch.NONE
 
 
@@ -345,9 +349,28 @@ func _on_touch_up(pos: Vector2, canceled: bool) -> void:
 				# Decided once hover has settled, since that's what tells which item the finger is on.
 				_enqueue(_tap.bind(_touch_start), maxi(_touch_down_frame + HOVER_FRAMES, _frame()))
 		Touch.DRAGGING:
-			_enqueue(_motion(pos, MOUSE_BUTTON_MASK_LEFT), _frame())
-			_enqueue(_button(MOUSE_BUTTON_LEFT, false, pos, 0), _frame())
+			# The release waits a frame or two behind the last motion: a card flicked into the play zone and let go in
+			# the same frame would start the game's click-to-target mode instead of being played.
+			var moved := _enqueue(_motion(pos, MOUSE_BUTTON_MASK_LEFT), _frame())
+			var released := _enqueue(_button(MOUSE_BUTTON_LEFT, false, pos, 0), moved + DRAG_RELEASE_FRAMES)
+			_enqueue(_end_card_play, released + CARD_PLAY_SETTLE_FRAMES)
 	_touch = Touch.NONE
+
+
+## A dragged hand card that is let go before it reaches the play zone (or, if it needs a target, over no enemy) leaves
+## the game's card play running: on PC the card then sticks to the cursor until a click picks a target or a right
+## click cancels (NMouseCardPlay, NTargetManager), and on a phone it stayed stuck (issue #7). Once the finger is up and
+## the game has handled the release, a play still running is waiting for one of those clicks, so cancel it and the
+## card goes back to the hand. A card that was played has finished by then (TryPlayCard runs synchronously).
+func _end_card_play() -> void:
+	if _touch != Touch.NONE:
+		return  # a new touch is under way; it ends its own play
+	var game := get_node_or_null("/root/Game")
+	for hand in _find_all_by_script(game if game != null else get_tree().root, HAND, []):
+		var play = hand.get("_currentCardPlay")
+		if hand.get("InCardPlay") == true and is_instance_valid(play) and not play.is_queued_for_deletion():
+			print("[sts2port] Hand: card let go outside a play, returned to the hand")
+			hand.call("CancelAllCardPlay")
 
 
 ## Hover (if the cursor isn't there yet), press, hold, release. The click goes ahead of anything newer touches have

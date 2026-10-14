@@ -51,6 +51,36 @@ func _gui_input(event: InputEvent) -> void:
 		Close()
 """
 const HAND_SOURCE := "extends Control\nvar IsInCardSelection := false\n"
+## A hand whose card play works like NMouseCardPlay: a left press on a card starts it; a release in the play zone (top
+## three quarters) plays the card; a release lower down leaves it running, waiting for a click (issue #7).
+const PLAYING_HAND_SOURCE := """extends Control
+var IsInCardSelection := false
+var InCardPlay := false
+var _currentCardPlay: Node = null
+var cancelled := 0
+var played := 0
+func _input(event: InputEvent) -> void:
+	if InCardPlay and event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
+		if event.position.y < size.y * 0.75:
+			played += 1
+			_finish()
+func start() -> void:
+	InCardPlay = true
+	_currentCardPlay = Node.new()
+	add_child(_currentCardPlay)
+func _finish() -> void:
+	InCardPlay = false
+	_currentCardPlay.queue_free()
+func CancelAllCardPlay() -> void:
+	if InCardPlay:
+		cancelled += 1
+		_finish()
+"""
+const PLAYING_CARD_SOURCE := """extends Control
+func _gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		get_parent().start()
+"""
 const PROCEED_SOURCE := "extends Control\nvar IsEnabled := true\n"
 const INSPECT_SOURCE := """extends Control
 var hide_in := -1
@@ -84,6 +114,7 @@ func _run() -> void:
 	await _test_tap_burst_follows_inspect()
 	await _test_tap_after_closing_tap()
 	await _test_hand_card_tap()
+	await _test_hand_card_let_go()
 	await _test_tick_lift()
 	await _test_take_through_closing_inspect()
 	print("Touch pick checks: ", "PASS" if failures == 0 else "%d FAILURES" % failures)
@@ -217,6 +248,30 @@ func _test_hand_card_tap() -> void:
 	await _frames(2)
 
 
+## Issue #7: a card dragged a little and let go in the hand goes back (the play is cancelled); one dragged into the
+## play zone is played and not cancelled.
+func _test_hand_card_let_go() -> void:
+	var hand := _scripted("NPlayerHand.cs", PLAYING_HAND_SOURCE)
+	hand.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hand.size = Vector2(2424, 1080)
+	root.add_child(hand)
+	var card := _scripted("NHandCardHolder.cs", PLAYING_CARD_SOURCE)
+	card.position = Vector2(1100, 820)
+	card.size = Vector2(200, 260)
+	hand.add_child(card)
+	await _frames(2)
+	var start := _centre(card)
+	_drag_now([start, start + Vector2(0, -60)])
+	await _frames(20)
+	_check(hand.cancelled == 1 and hand.played == 0, "a card let go in the hand goes back to it")
+	_check(not hand.InCardPlay, "no card play is left running after letting go in the hand")
+	_drag_now([start, start + Vector2(0, -100), Vector2(1200, 300)])
+	await _frames(20)
+	_check(hand.played == 1 and hand.cancelled == 1, "a card dragged into the play zone is played, not cancelled")
+	hand.queue_free()
+	await _frames(2)
+
+
 ## The tick lifts only above a Proceed/Skip arrow that is enabled and on screen.
 func _test_tick_lift() -> void:
 	var tick := Control.new()
@@ -304,6 +359,18 @@ func _touch_now(pos: Vector2, pressed: bool) -> void:
 	event.position = pos
 	event.pressed = pressed
 	boot._input(event)
+
+
+## Finger down at the first point, moved through the rest one frame apart, lifted at the last.
+func _drag_now(points: Array) -> void:
+	_touch_now(points[0], true)
+	for point in points.slice(1):
+		await process_frame
+		var drag := InputEventScreenDrag.new()
+		drag.position = point
+		boot._input(drag)
+	await process_frame
+	_touch_now(points[-1], false)
 
 
 func _frames(count: int) -> void:
