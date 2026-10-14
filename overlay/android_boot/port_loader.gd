@@ -8,9 +8,16 @@ extends Node
 
 const PLUGIN := "Sts2PortPerf"
 const VERSION_FILE := "res://android_boot/version.txt"
+## An empty file with this name next to the packs keeps the overlay's own copy of the port code: for testing a change on
+## the phone, or shipping one from a PC without the APK's signing key.
+const OVERLAY_CODE_FLAG := "port_code_overlay"
+const PACKS_DIR := "/storage/emulated/0/Android/data/com.howieyhy.sts2port/files"
 
 
 func _init() -> void:
+	if FileAccess.file_exists(_packs_dir().path_join(OVERLAY_CODE_FLAG)):
+		print("[sts2port] Port code: overlay's copy (", OVERLAY_CODE_FLAG, " flag)")
+		return
 	if not Engine.has_singleton(PLUGIN):
 		print("[sts2port] Port code: overlay's copy (no Android plugin in this APK)")
 		return
@@ -23,3 +30,11 @@ func _init() -> void:
 		return
 	var version := FileAccess.get_file_as_string(VERSION_FILE).strip_edges()
 	print("[sts2port] Port code: from the APK, ", version if version != "" else "unknown version")
+
+
+func _packs_dir() -> String:
+	var args := OS.get_cmdline_args()
+	var i := args.find("--main-pack")
+	if i >= 0 and i + 1 < args.size():
+		return args[i + 1].get_base_dir()
+	return PACKS_DIR

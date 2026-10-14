@@ -76,14 +76,19 @@ Plan: `C:\Users\Admin\.claude\plans\i-want-to-make-atomic-glacier.md` (riskiest 
 ## Game version verification
 
 Current reference game: **v0.111.0**, commit `41cef1ea`, branch `v0.111.0`.
-Source: `D:\Steam\steamapps\common\Slay the Spire 2\release_info.json`; verified **13 October 2026**.
-Last phone-tested game build: **v0.111.0**, commit `41cef1ea`, on **13 October 2026**; the deployed overlay
-matches the pack rebuilt from the reference installation.
+Source: `C:\Program Files (x86)\Steam\steamapps\common\Slay the Spire 2\release_info.json` (second PC, user
+`howie`); verified **14 October 2026** (first verified 13 October 2026 from `D:\Steam\...` on the other PC).
+Last phone-tested game build: **v0.111.0**, commit `41cef1ea`, on **14 October 2026** (issue #7); the deployed
+overlay was built from the reference installation on the second PC.
 Last emulator-tested game build: **v0.111.0**, commit `41cef1ea`, on **13 October 2026** (touch fixes for
 issues #1-#5).
 Phone deployment, 13 October 2026: APK **0.1.1** (code 2, hash matches the v0.1.1 release) and an overlay with
 `port_loader.gd` built from the v0.111.0 reference installation; the game loads the port code from the APK and
 reaches the menu with the saved run intact. #1-#5 retested on the phone with the dev console the same day (Profile 2).
+Phone deployment, 14 October 2026: APK **0.1.4** unchanged; a new overlay (SHA-1 `926e97d5`) from the second PC with
+the issue #7 fix in its `boot.gd`, plus the `port_code_overlay` flag file so it runs instead of the APK's copy (the
+second PC lacks the release signing key). Previous overlay backed up to `%LOCALAPPDATA%\sts2port\backup-20261014`.
+Issue #7 tested on the phone over wireless adb in Profile 2 with the dev console (6 drag cases).
 
 - Re-read `<GameDir>/release_info.json` from the actual game installation used for applicable work; use its
   `version`, `commit` and `branch` fields. Read the game folder only; never modify it or copy game files into the repo.
@@ -220,6 +225,13 @@ scratchpad (re-create with
   tried. VSync did nothing on the phone and Long Press Confirmations would have blocked End Turn. **Check each
   setting by measuring its effect** (perf_log fps/vram, the `fmod` volume line, game log lines like "FPS Limit:"),
   and put the user's values back afterwards: settings save on pause, so test values stick.
+- Issue #7: pressing a hand card starts `NMouseCardPlay`, which follows the cursor until it enters the play zone
+  and doesn't end on release; PC then waits for a target click or a right click. On touch, cancel any play still
+  running after the release (`NPlayerHand.CancelAllCardPlay`). Read the game's state machine before guessing.
+- The second PC (`C:\Users\howie`) has a different debug keystore from the releases': an APK built there would
+  force an uninstall (saves lost). Ship `boot.gd` fixes from it through the overlay (`port_code_overlay` flag, README).
+- An `adb push` that fails half-way deletes the target file on the phone (the overlay was briefly gone). Back up
+  first, make sure only one adb device is listed, and verify every push by hash.
 - Game screens that "hide" by sliding off screen stay `visible` (NProceedButton). Checking `is_visible_in_tree()`
   alone lifted the tick above an invisible arrow (issue #3). Check the game's own enabled state and the on-screen rect.
 

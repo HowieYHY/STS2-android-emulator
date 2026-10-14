@@ -14,7 +14,8 @@ and Android performance hints are enabled; combat frame-time spikes remain (see 
 ## STS2 game version
 
 The current reference game is **v0.111.0**, commit `41cef1ea`, branch `v0.111.0`, verified on
-**13 October 2026** from `D:\Steam\steamapps\common\Slay the Spire 2\release_info.json`.
+**14 October 2026** from `C:\Program Files (x86)\Steam\steamapps\common\Slay the Spire 2\release_info.json` (second PC;
+first verified 13 October 2026 from `D:\Steam\...`).
 This is the STS2 game version; the Android port's APK version is tracked separately below.
 
 Whenever work involves inspecting or patching game files, rebuilding or pushing the overlay/texture packs,
@@ -131,7 +132,17 @@ Without Godot 4.5.1 .NET the phone texture pack is skipped (a warning says so): 
 
 No cable (Android 11+, PC and phone on the same Wi-Fi, or the phone on the PC's mobile hotspot): Developer options →
 Wireless debugging → "Pair device with pairing code", then `adb pair <ip:port> <code>` and
-`adb connect <ip:port shown at the top>` on the PC, and run step 3 as above. Not yet tested over Wi-Fi.
+`adb connect <ip:port shown at the top>` on the PC, and run step 3 as above. Tested 14 October 2026 on the PC's
+mobile hotspot: a campus Wi-Fi blocked the PC from reaching the phone (pairing failed with "protocol fault"; adb's
+log showed the connection timing out). The pairing port only listens while the pairing pop-up is open, and the
+connect port changes when wireless debugging restarts (`adb mdns services` lists both). If adb lists the phone
+twice (mDNS name and IP), `adb disconnect <ip:port>` or set `ANDROID_SERIAL`, or pushes fail half-way.
+
+**Port code from the overlay** (no APK release): an empty file `port_code_overlay` next to the packs makes
+`port_loader.gd` keep the overlay's own `boot.gd` instead of the APK's. Use it to test a `boot.gd` change on the phone,
+or to ship one from a PC that doesn't have the release signing key: build the overlay (`build_overlay.py`, or
+`push-game.ps1`), push it, then `adb shell touch .../files/port_code_overlay`. Delete the file to go back to the APK's
+code (do that once a later APK release contains the fix). Used on 14 October 2026 for issue #7.
 
 ## Possible future changes
 
