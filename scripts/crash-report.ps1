@@ -9,7 +9,9 @@
     dropbox.txt     Android's crash records: Java crashes, native crashes and tombstones, ANRs
     crash-log.txt   logcat's crash buffer
     log.txt         the last 20,000 lines of logcat (the game logs everything there)
-    game-logs\      the game's own log files, one per session (the newest five), including the session that crashed
+    game-logs\      the game's own log files, one per session (the newest five), including the session that crashed,
+                    and logcat-*.txt: everything the app's process wrote to logcat (Godot, the .NET runtime, Android's
+                    "Fatal signal" line), captured live by the APK from 0.1.5 on. Read the crashed session's one first.
   Nothing on the phone is changed.
 
 .EXAMPLE
@@ -46,3 +48,6 @@ Invoke-Adb pull "/storage/emulated/0/Android/data/$Package/files/logs" (Join-Pat
 $reasons = Select-String -Path (Join-Path $OutDir "exit-info.txt") -Pattern "reason=" | Select-Object -First 5
 Write-Host "Saved to $OutDir"
 if ($reasons) { Write-Host "Most recent app exits:"; $reasons | ForEach-Object { Write-Host "  $($_.Line.Trim())" } }
+$fatal = Get-ChildItem (Join-Path $OutDir "game-logs") -Filter "logcat*.txt" -ErrorAction SilentlyContinue |
+    Select-String -Pattern "Fatal signal|Abort message| F (libc|DEBUG|mono)|Assertion|Unhandled Exception|FATAL"
+if ($fatal) { Write-Host "Fatal lines in the captured logcat:"; $fatal | Select-Object -Last 15 | ForEach-Object { Write-Host "  $($_.Filename): $($_.Line.Trim())" } }

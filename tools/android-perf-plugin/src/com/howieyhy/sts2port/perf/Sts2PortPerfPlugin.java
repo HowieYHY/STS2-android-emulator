@@ -5,12 +5,14 @@ import android.content.Context;
 import android.os.Build;
 import android.os.PerformanceHintManager;
 import android.os.Process;
+import android.view.View;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Arrays;
 
 import org.godotengine.godot.Godot;
 import org.godotengine.godot.plugin.GodotPlugin;
@@ -21,6 +23,11 @@ import org.godotengine.godot.plugin.UsedByGodot;
  *
  * <p>{@link #installPortPack} hands the overlay the port's own code shipped in this APK; see port_loader.gd.
  *
+ * <p>Crash log: the phone's logcat buffer holds only a few minutes, and logd prunes the chattiest app first, so after a
+ * crash (issue #6, 16 Oct: SIGABRT with no tombstone) the game's last lines and the runtime's abort message were gone.
+ * At startup a logcat reader for this process alone writes them to files/logs/logcat.txt, where
+ * scripts/crash-report.ps1 collects them. An app may read its own log lines without any permission.
+ *
  * <p>Android Dynamic Performance Framework (ADPF) hints for the game's main thread:
  *
  * Measured on a Pixel 9a: during combat animations the Godot main thread ran on the mid cores mostly at
@@ -30,7 +37,10 @@ import org.godotengine.godot.plugin.UsedByGodot;
  * {@link #reportFrame} every frame. Android 12 (API 31) and newer; on older versions both do nothing.
  */
 public class Sts2PortPerfPlugin extends GodotPlugin {
+    private static final int KEPT_LOGCAT_SESSIONS = 5;
+
     private Object session; // PerformanceHintManager.Session (API 31+), kept untyped so older Androids can load us
+    private java.lang.Process logcat;
 
     public Sts2PortPerfPlugin(Godot godot) {
         super(godot);
@@ -39,6 +49,58 @@ public class Sts2PortPerfPlugin extends GodotPlugin {
     @Override
     public String getPluginName() {
         return "Sts2PortPerf";
+    }
+
+    @Override
+    public View onMainCreate(Activity activity) {
+        startLogcat(activity);
+        return null;
+    }
+
+    @Override
+    public void onMainDestroy() {
+        if (logcat != null) {
+            logcat.destroy();
+        }
+    }
+
+    /**
+     * Starts `logcat` for this process (main, system and crash buffers) writing to logs/logcat.txt. The previous
+     * session's file is renamed logcat-&lt;time&gt;.txt first, keeping the newest few: after a crash the user usually
+     * relaunches the game before the PC collects the logs.
+     *
+     * <p>Its stdout goes straight to the file. `logcat -f` (which can rotate) writes in 4 KB blocks, and when the app
+     * dies Android kills logcat with it, so the last lines before a crash, the ones that matter, were lost (measured on
+     * the phone with a force-stop). A session writes a few MB an hour.
+     */
+    private void startLogcat(Activity activity) {
+        File base = activity.getExternalFilesDir(null);
+        File dir = base == null ? null : new File(base, "logs");
+        if (dir == null || (!dir.isDirectory() && !dir.mkdirs())) {
+            return;
+        }
+        File current = new File(dir, "logcat.txt");
+        if (current.exists()) {
+            String stamp = new java.text.SimpleDateFormat("yyyyMMdd-HHmmss", java.util.Locale.ROOT)
+                    .format(new java.util.Date(current.lastModified()));
+            current.renameTo(new File(dir, "logcat-" + stamp + ".txt"));
+        }
+        File[] old = dir.listFiles((d, name) -> name.matches("logcat-\\d{8}-\\d{6}\\.txt"));
+        if (old != null && old.length > KEPT_LOGCAT_SESSIONS) {
+            Arrays.sort(old); // the names sort by time
+            for (int i = 0; i < old.length - KEPT_LOGCAT_SESSIONS; i++) {
+                old[i].delete();
+            }
+        }
+        try {
+            logcat = new ProcessBuilder("logcat", "-b", "main,system,crash", "-v", "threadtime",
+                    "--pid=" + Process.myPid())
+                    .redirectOutput(current)
+                    .redirectError(new File(dir, "logcat-errors.txt"))
+                    .start();
+        } catch (IOException | RuntimeException e) {
+            logcat = null;
+        }
     }
 
     /** Starts a hint session for the calling thread. Returns false when the device doesn't support it. */

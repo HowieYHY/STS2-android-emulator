@@ -230,6 +230,16 @@ Applied to a copy with Mono.Cecil; each one checks the code shape and fails loud
   Ancient, an Act 2 fight). The overlay now logs to `files/logs/godot.log` on the phone (newest five sessions), so
   after another crash `scripts\crash-report.ps1` collects the game's own log of that session. The two LOW_MEMORY
   exits in the same record were Android reclaiming the game while it was in the background (normal).
+- A second SIGABRT (16 Oct 01:14, APK 0.1.4 with the overlay's issue #7 boot.gd, 2.0 GB RSS), on the game-over
+  screen after losing to the Phrog Parasite elite; progress, run history and the unlock were saved first. From the
+  moment that fight loaded, Godot logged `Cannot allocate descriptor sets, error -12` (`VK_ERROR_FRAGMENTED_POOL`;
+  Godot 4.5.1 doesn't retry, it skips the draw), 56 times; no earlier session has any. The log then ends in Godot's
+  shutdown messages, so something started an exit and it aborted; the reason wasn't kept: logd prunes the chattiest
+  app first and the phone's main buffer holds about 4 minutes. From APK 0.1.5 the app captures its own logcat to
+  `files/logs/logcat.txt` (see Tools), so the next one will show the abort message. Next step: `fight
+  PHROG_PARASITE_ELITE` in Profile 2 and check whether the descriptor errors come back.
+  The same session logged an `ObjectDisposedException` on every card play: the issue #7 code read the hand's freed
+  card play. Fixed in 0.1.5.
 - Settings → Language: the two Chinese entries (中文, 繁體中文) are drawn with white blocks over them in the
   list (Japanese and Korean are fine). Not investigated yet; check whether Chinese text in-game is affected.
 - Rooms entered with the dev console (`room treasure`...) aren't part of the saved map: after a restart the run
@@ -328,7 +338,9 @@ The MSI build of the JDK ignores winget's `--location`, so use the portable zip 
 - `python -I scripts/build_port_pack.py --out <file>` — build `port.pck` (boot.gd + version stamp); run by
   `build-perf-plugin.ps1`, which puts it into the plugin's `.aar` and so into the APK's assets.
 - `scripts\crash-report.ps1` — after a crash, save Android's records of it (exit reasons, crash/tombstone
-  records, logcat) from the phone to `%LOCALAPPDATA%\sts2port\crash-<time>`. Read-only on the phone.
+  records, logcat) from the phone to `%LOCALAPPDATA%\sts2port\crash-<time>`. Read-only on the phone. It also pulls
+  `files/logs`: the game's own logs and (APK 0.1.5+) `logcat*.txt`, the app's whole logcat output per session,
+  captured live by the APK's plugin from launch (newest five kept), and lists any fatal lines in them.
 - Emulator (not installed; ~18 GB with the game packs). To set it up again: `sdkmanager --sdk_root=D:\Android\sdk
   "emulator" "system-images;android-34;google_apis;x86_64"`, then with `ANDROID_AVD_HOME=D:\Android\avd`:
   `avdmanager create avd -n sts2test -k "system-images;android-34;google_apis;x86_64" -d pixel_7` and set

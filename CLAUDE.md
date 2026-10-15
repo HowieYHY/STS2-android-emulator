@@ -232,6 +232,14 @@ scratchpad (re-create with
   force an uninstall (saves lost). Ship `boot.gd` fixes from it through the overlay (`port_code_overlay` flag, README).
 - An `adb push` that fails half-way deletes the target file on the phone (the overlay was briefly gone). Back up
   first, make sure only one adb device is listed, and verify every push by hash.
+- The 16 Oct crash's abort reason was lost: the phone's main logcat buffer holds ~4 minutes and logd prunes the
+  chattiest app first. The APK now captures its own logcat from launch (plugin `startLogcat`). `logcat -f` writes in
+  4 KB blocks and dies with the app, losing the last lines; plain stdout to a file doesn't (checked with a force-stop:
+  the capture ends on the same line as godot.log). **Check a crash logger by killing the app and reading the end.**
+- The issue #7 code read `NPlayerHand._currentCardPlay` before `InCardPlay`: once the play is freed, that read throws
+  ObjectDisposedException in the game's C# (86 times in one session), and the headless test passed because a GDScript
+  stand-in can't throw. Read game C# fields only behind the game's own validity check, and make stand-ins count what
+  the game would throw on. In GDScript a freed object compares equal to null; use a flag or `is_instance_valid`.
 - Game screens that "hide" by sliding off screen stay `visible` (NProceedButton). Checking `is_visible_in_tree()`
   alone lifted the tick above an invisible arrow (issue #3). Check the game's own enabled state and the on-screen rect.
 
