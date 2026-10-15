@@ -367,8 +367,12 @@ func _end_card_play() -> void:
 		return  # a new touch is under way; it ends its own play
 	var game := get_node_or_null("/root/Game")
 	for hand in _find_all_by_script(game if game != null else get_tree().root, HAND, []):
+		# InCardPlay first: it checks the play is still a live object. Once the play is freed, reading _currentCardPlay
+		# throws ObjectDisposedException in the game's C# (logged on every card play on the phone, 16 Oct).
+		if hand.get("InCardPlay") != true:
+			continue
 		var play = hand.get("_currentCardPlay")
-		if hand.get("InCardPlay") == true and is_instance_valid(play) and not play.is_queued_for_deletion():
+		if is_instance_valid(play) and not play.is_queued_for_deletion():
 			print("[sts2port] Hand: card let go outside a play, returned to the hand")
 			hand.call("CancelAllCardPlay")
 

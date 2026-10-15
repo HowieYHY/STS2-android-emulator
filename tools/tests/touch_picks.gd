@@ -56,7 +56,16 @@ const HAND_SOURCE := "extends Control\nvar IsInCardSelection := false\n"
 const PLAYING_HAND_SOURCE := """extends Control
 var IsInCardSelection := false
 var InCardPlay := false
-var _currentCardPlay: Node = null
+## Like the game's C# field: reading it after the play is freed throws ObjectDisposedException; count those reads.
+var _play: Node = null
+var stale_reads := 0
+var _had_play := false
+var _currentCardPlay: Node:
+	get:
+		if _had_play and not is_instance_valid(_play):  # a freed object compares equal to null in GDScript
+			stale_reads += 1
+			return null
+		return _play
 var cancelled := 0
 var played := 0
 func _input(event: InputEvent) -> void:
@@ -66,11 +75,12 @@ func _input(event: InputEvent) -> void:
 			_finish()
 func start() -> void:
 	InCardPlay = true
-	_currentCardPlay = Node.new()
-	add_child(_currentCardPlay)
+	_play = Node.new()
+	_had_play = true
+	add_child(_play)
 func _finish() -> void:
 	InCardPlay = false
-	_currentCardPlay.queue_free()
+	_play.queue_free()
 func CancelAllCardPlay() -> void:
 	if InCardPlay:
 		cancelled += 1
@@ -268,6 +278,7 @@ func _test_hand_card_let_go() -> void:
 	_drag_now([start, start + Vector2(0, -100), Vector2(1200, 300)])
 	await _frames(20)
 	_check(hand.played == 1 and hand.cancelled == 1, "a card dragged into the play zone is played, not cancelled")
+	_check(hand.stale_reads == 0, "the port never reads a freed card play (ObjectDisposedException in the game)")
 	hand.queue_free()
 	await _frames(2)
 
