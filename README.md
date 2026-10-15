@@ -236,8 +236,9 @@ Applied to a copy with Mono.Cecil; each one checks the code shape and fails loud
   Godot 4.5.1 doesn't retry, it skips the draw), 56 times; no earlier session has any. The log then ends in Godot's
   shutdown messages, so something started an exit and it aborted; the reason wasn't kept: logd prunes the chattiest
   app first and the phone's main buffer holds about 4 minutes. From APK 0.1.5 the app captures its own logcat to
-  `files/logs/logcat.txt` (see Tools), so the next one will show the abort message. Next step: `fight
-  PHROG_PARASITE_ELITE` in Profile 2 and check whether the descriptor errors come back.
+  `files/logs/logcat.txt` (see Tools), so the next one will show the abort message. Not reproduced: on 0.1.5, a
+  fresh launch straight into `fight PHROG_PARASITE_ELITE` (Profile 2, three turns) logged no descriptor errors, so
+  they likely build up over a session (the crashed one had run 9 minutes and several fights).
   The same session logged an `ObjectDisposedException` on every card play: the issue #7 code read the hand's freed
   card play. Fixed in 0.1.5.
 - Settings → Language: the two Chinese entries (中文, 繁體中文) are drawn with white blocks over them in the

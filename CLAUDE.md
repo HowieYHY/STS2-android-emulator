@@ -78,8 +78,9 @@ Plan: `C:\Users\Admin\.claude\plans\i-want-to-make-atomic-glacier.md` (riskiest 
 Current reference game: **v0.111.0**, commit `41cef1ea`, branch `v0.111.0`.
 Source: `C:\Program Files (x86)\Steam\steamapps\common\Slay the Spire 2\release_info.json` (second PC, user
 `howie`); verified **14 October 2026** (first verified 13 October 2026 from `D:\Steam\...` on the other PC).
-Last phone-tested game build: **v0.111.0**, commit `41cef1ea`, on **14 October 2026** (issue #7); the deployed
-overlay was built from the reference installation on the second PC.
+Last phone-tested game build: **v0.111.0**, commit `41cef1ea`, on **16 October 2026** (APK 0.1.5: card plays,
+issue #7 let-go, Phrog Parasite elite, logcat capture; Profile 2); release_info.json re-read from `D:\Steam\...` that
+day. The deployed overlay is still the 14 October one, built from the reference installation on the second PC.
 Last emulator-tested game build: **v0.111.0**, commit `41cef1ea`, on **13 October 2026** (touch fixes for
 issues #1-#5).
 Phone deployment, 13 October 2026: APK **0.1.1** (code 2, hash matches the v0.1.1 release) and an overlay with
@@ -89,6 +90,8 @@ Phone deployment, 14 October 2026: APK **0.1.4** unchanged; a new overlay (SHA-1
 the issue #7 fix in its `boot.gd`, plus the `port_code_overlay` flag file so it runs instead of the APK's copy (the
 second PC lacks the release signing key). Previous overlay backed up to `%LOCALAPPDATA%\sts2port\backup-20261014`.
 Issue #7 tested on the phone over wireless adb in Profile 2 with the dev console (6 drag cases).
+Phone deployment, 16 October 2026: APK **0.1.5** (code 6, the v0.1.5 release build) installed over adb; the
+`port_code_overlay` flag was removed, so the port code runs from the APK again ("Port code: from the APK").
 
 - Re-read `<GameDir>/release_info.json` from the actual game installation used for applicable work; use its
   `version`, `commit` and `branch` fields. Read the game folder only; never modify it or copy game files into the repo.
