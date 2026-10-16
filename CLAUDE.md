@@ -76,8 +76,8 @@ Plan: `C:\Users\Admin\.claude\plans\i-want-to-make-atomic-glacier.md` (riskiest 
 ## Game version verification
 
 Current reference game: **v0.111.0**, commit `41cef1ea`, branch `v0.111.0`.
-Source: `C:\Program Files (x86)\Steam\steamapps\common\Slay the Spire 2\release_info.json` (second PC, user
-`howie`); verified **14 October 2026** (first verified 13 October 2026 from `D:\Steam\...` on the other PC).
+Source: `D:\Steam\steamapps\common\Slay the Spire 2\release_info.json`; verified **16 October 2026** (also
+14 October 2026 from `C:\Program Files (x86)\Steam\...` on the second PC, user `howie`).
 Last phone-tested game build: **v0.111.0**, commit `41cef1ea`, on **16 October 2026** (APK 0.1.5: card plays,
 issue #7 let-go, Phrog Parasite elite, logcat capture; Profile 2); release_info.json re-read from `D:\Steam\...` that
 day. The deployed overlay is still the 14 October one, built from the reference installation on the second PC.
@@ -92,6 +92,10 @@ second PC lacks the release signing key). Previous overlay backed up to `%LOCALA
 Issue #7 tested on the phone over wireless adb in Profile 2 with the dev console (6 drag cases).
 Phone deployment, 16 October 2026: APK **0.1.5** (code 6, the v0.1.5 release build) installed over adb; the
 `port_code_overlay` flag was removed, so the port code runs from the APK again ("Port code: from the APK").
+Phone deployment, 16 October 2026 (evening): a new overlay (SHA-1 `7e3deee6`) built on this PC from
+`D:\Steam\...` (release_info.json re-read: v0.111.0, `41cef1ea`) with `max_descriptors_per_pool` = 1024 for the
+descriptor-set crashes; APK 0.1.5 unchanged. Reaches the menu. Previous overlay (`926e97d5`) backed up to
+`%LOCALAPPDATA%\sts2port\backup-20261016`.
 
 - Re-read `<GameDir>/release_info.json` from the actual game installation used for applicable work; use its
   `version`, `commit` and `branch` fields. Read the game folder only; never modify it or copy game files into the repo.
@@ -243,6 +247,9 @@ scratchpad (re-create with
   ObjectDisposedException in the game's C# (86 times in one session), and the headless test passed because a GDScript
   stand-in can't throw. Read game C# fields only behind the game's own validity check, and make stand-ins count what
   the game would throw on. In GDScript a freed object compares equal to null; use a flag or `is_instance_valid`.
+- The 16 Oct 01:14 crash already showed 56 `Cannot allocate descriptor sets, error -12` lines but was filed as "reason
+  unknown"; the 14:11 crash with the APK's own logcat showed they lead straight to the abort. **Treat repeated
+  engine errors just before a crash as the lead suspect**, and count them per minute across sessions.
 - Game screens that "hide" by sliding off screen stay `visible` (NProceedButton). Checking `is_visible_in_tree()`
   alone lifted the tick above an invisible arrow (issue #3). Check the game's own enabled state and the on-screen rect.
 

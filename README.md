@@ -14,8 +14,8 @@ and Android performance hints are enabled; combat frame-time spikes remain (see 
 ## STS2 game version
 
 The current reference game is **v0.111.0**, commit `41cef1ea`, branch `v0.111.0`, verified on
-**14 October 2026** from `C:\Program Files (x86)\Steam\steamapps\common\Slay the Spire 2\release_info.json` (second PC;
-first verified 13 October 2026 from `D:\Steam\...`).
+**16 October 2026** from `D:\Steam\steamapps\common\Slay the Spire 2\release_info.json` (the overlay pushed that day
+was built from it; also verified 14 October 2026 from `C:\Program Files (x86)\Steam\...` on the second PC).
 This is the STS2 game version; the Android port's APK version is tracked separately below.
 
 Whenever work involves inspecting or patching game files, rebuilding or pushing the overlay/texture packs,
@@ -241,6 +241,14 @@ Applied to a copy with Mono.Cecil; each one checks the code shape and fails loud
   they likely build up over a session (the crashed one had run 9 minutes and several fights).
   The same session logged an `ObjectDisposedException` on every card play: the issue #7 code read the hand's freed
   card play. Fixed in 0.1.5.
+- A third SIGABRT (16 Oct 14:11, APK 0.1.5, 2.8 GB RSS), caught by the APK's own logcat: the first
+  `Cannot allocate descriptor sets, error -12` came 16 minutes into the session as the Mytes fight loaded, then 26 in
+  under two minutes, the last burst as the card reward screen opened; then Godot's state broke
+  (`BUG: Unreferenced static string`) and the process ended on `libc++abi: terminating`. The run was saved just before.
+  So the descriptor errors cause these crashes. Godot hands out descriptor sets from pools of
+  `rendering/rendering_device/vulkan/max_descriptors_per_pool` (default 64) and gives up when the driver refuses one.
+  The overlay now sets it to 1024 (pushed 16 Oct, overlay SHA-1 `7e3deee6`; reaches the menu, port code from the
+  APK). Not yet confirmed over a long session: check the captured logcat for `error -12` after the next long play.
 - Settings → Language: the two Chinese entries (中文, 繁體中文) are drawn with white blocks over them in the
   list (Japanese and Korean are fine). Not investigated yet; check whether Chinese text in-game is affected.
 - Rooms entered with the dev console (`room treasure`...) aren't part of the saved map: after a restart the run

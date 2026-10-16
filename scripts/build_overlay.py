@@ -56,6 +56,10 @@ EXTRA_SETTINGS = {
     "debug/file_logging/enable_file_logging": pcklib.variant_bool(True),
     "debug/file_logging/log_path": pcklib.variant_string(
         "/storage/emulated/0/Android/data/com.howieyhy.sts2port/files/logs/godot.log"),
+    # The Pixel 9a's driver began refusing descriptor sets (VK_ERROR_FRAGMENTED_POOL, "error -12") 16 minutes into a
+    # run, more often each minute, until the game aborted on a card reward screen (16 Oct). Godot 4.5.1 gives up on a
+    # failed allocation instead of trying a new pool; bigger pools (default 64) make the refusals much rarer.
+    "rendering/rendering_device/vulkan/max_descriptors_per_pool": pcklib.variant_int(1024),
 }
 PATCHER_PROJECT = os.path.join(REPO, "tools", "Sts2Patcher", "Sts2Patcher.csproj")
 PATCHER_DLL = os.path.join(REPO, "tools", "Sts2Patcher", "bin", "Release", "net9.0", "Sts2Patcher.dll")
