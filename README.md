@@ -14,8 +14,8 @@ and Android performance hints are enabled; combat frame-time spikes remain (see 
 ## STS2 game version
 
 The current reference game is **v0.111.0**, commit `41cef1ea`, branch `v0.111.0`, verified on
-**16 October 2026** from `D:\Steam\steamapps\common\Slay the Spire 2\release_info.json` (the overlay pushed that day
-was built from it; also verified 14 October 2026 from `C:\Program Files (x86)\Steam\...` on the second PC).
+**17 October 2026** from `D:\Steam\steamapps\common\Slay the Spire 2\release_info.json` (the overlay pushed that day
+was built from it, and the in-game corner label shows it; also verified 14 October 2026 from `C:\Program Files (x86)\Steam\...` on the second PC).
 This is the STS2 game version; the Android port's APK version is tracked separately below.
 
 Whenever work involves inspecting or patching game files, rebuilding or pushing the overlay/texture packs,
@@ -93,6 +93,7 @@ through Android's ARM translation) with the Pixel 9a's 1080x2424 screen, the 0.1
 | Picks (tick) | Anything taken the moment it's clicked: card rewards, choose-a-card/relic, shop cards, relics and potions. A tap is the game's own right-click inspect (inspect screen, or the tooltip) and the game's confirm tick slides in at the right edge; the tick replays a real left click on the item, straight through the closing inspect screen. Back or tapping elsewhere cancels. The treasure room's single relic is taken on tap, and event/Ancient options are chosen on tap (long-press shows their tooltip): no tick. The tick moves above the Proceed/Skip arrow only if that arrow is enabled and on screen. Screens with their own preview + confirm (deck upgrade/remove/transform, bundles) keep tap = click. |
 | Dev console | `scripts\dev-console.ps1 -On -Restart` turns on the game's full console (it creates a `dev_console` file next to the packs; the boot script then sets `full_console` in settings.save, and removes it again once the file is gone). `-Run "gold 200; room shop"` types commands into it; `-Off` turns it off. Used for testing instead of playing to a screen. |
 | Frame pacing | Swappy is turned off in the overlay: with it on, about one launch in three froze before the first frame. |
+| Version label | The game's small grey label in the top-right corner shows the game version and build date and the app's version, e.g. `v0.111.0` / `2026.08.13` / `Android 0.1.7` on the main menu, and `[v0.111.0] (2026.08.13) · Android 0.1.7` in a run. The game said `NONE` / `???` there on Android because it can't find its `release_info.json`; `build_overlay.py` copies it from the install the packs came from, so the label names the game build actually on the phone (a new STS2 version shows after the next `push-game.ps1`). Checked on the phone, 17 Oct 2026. |
 | Language list | 中文 and 繁體中文 drew with white wedges over 文 and 繁. The Latin UI fonts (Kreon...) have no CJK glyphs, so Godot fell back to Android's `NotoSansCJK-Regular.ttc` and drew it with Kreon's MSDF setting, which can't handle that font's overlapping outlines (reproduced on the PC with the phone's font; the game's own CJK fonts are fine). boot.gd gives the list's fonts that system font as an explicit fallback with MSDF off. Checked on the phone, 17 Oct 2026. With Chinese as the game language the game switches to its own CJK fonts (FontManager), which draw cleanly on the PC; not tried on the phone. |
 
 ## How it works
@@ -262,7 +263,7 @@ Applied to a copy with Mono.Cecil; each one checks the code shape and fails loud
   native ELF compatibility on a device with 16 KB pages is still unverified.
 - Debug builds use FMOD's logging libraries; time to main menu is ~19 s (10 s without FMOD).
 - `release_info.json` is only looked for next to the executable, which is read-only on Android: the version
-  check for mods is skipped (harmless).
+  check for mods is skipped (harmless). The corner build label no longer suffers from it (see Android behaviour).
 - Combat: while cards animate, frames drop to 50-75 ms (about 38 fps on average over those seconds; 60 fps when
   idle), and the first use of an effect in a session adds two ~140 ms frames. What's been measured (Pixel 9a,
   warm phone, thermal status "light"):

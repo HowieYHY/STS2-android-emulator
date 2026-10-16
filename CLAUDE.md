@@ -76,7 +76,7 @@ Plan: `C:\Users\Admin\.claude\plans\i-want-to-make-atomic-glacier.md` (riskiest 
 ## Game version verification
 
 Current reference game: **v0.111.0**, commit `41cef1ea`, branch `v0.111.0`.
-Source: `D:\Steam\steamapps\common\Slay the Spire 2\release_info.json`; verified **16 October 2026** (also
+Source: `D:\Steam\steamapps\common\Slay the Spire 2\release_info.json`; verified **17 October 2026** (also
 14 October 2026 from `C:\Program Files (x86)\Steam\...` on the second PC, user `howie`).
 Last phone-tested game build: **v0.111.0**, commit `41cef1ea`, on **16 October 2026** (APK 0.1.5: card plays,
 issue #7 let-go, Phrog Parasite elite, logcat capture; Profile 2); release_info.json re-read from `D:\Steam\...` that
@@ -96,6 +96,9 @@ Phone deployment, 16 October 2026 (evening): a new overlay (SHA-1 `7e3deee6`) bu
 `D:\Steam\...` (release_info.json re-read: v0.111.0, `41cef1ea`) with `max_descriptors_per_pool` = 1024 for the
 descriptor-set crashes; APK 0.1.5 unchanged. Reaches the menu. Previous overlay (`926e97d5`) backed up to
 `%LOCALAPPDATA%\sts2port\backup-20261016`.
+Phone deployment, 17 October 2026: APK **0.1.7** (code 8, the v0.1.7 release) over adb and a new overlay (SHA-1
+`7a60d270`) from `D:\Steam\...` (release_info.json re-read: v0.111.0, `41cef1ea`), which now carries that
+release_info.json: the game's corner label shows `v0.111.0` / `2026.08.13` / `Android 0.1.7`. Port code from the APK.
 
 - Re-read `<GameDir>/release_info.json` from the actual game installation used for applicable work; use its
   `version`, `commit` and `branch` fields. Read the game folder only; never modify it or copy game files into the repo.
@@ -258,6 +261,12 @@ scratchpad (re-create with
   screen and opened the owner's banking app (17 Oct). **Any script that sends input must check that the game is the
   focused window before every tap/key (`dumpsys window | grep mCurrentFocus`) and stop otherwise; kill it by process
   (`Get-CimInstance Win32_Process` on its command line) and confirm none remain before touching the phone again.**
+- The game started (something relaunched it after `adb install`) one second before `push-game.ps1` finished writing
+  overlay.pck, read a half-written pack and showed "Fatal Error: problem starting the game" (System.Collections.Immutable
+  "Failed to open assembly image"). **Force-stop the game right before pushing packs, and restart it only after the
+  push is verified by hash.** A clean restart fixed it; the pack itself was fine (DLLs byte-identical).
+- The game's own corner build label (NDebugInfoLabelManager `%ReleaseInfo`) is where version info lives: the port
+  adds its own there rather than new UI, and fills the game's NONE/??? from the overlay's copy of release_info.json.
 - Game screens that "hide" by sliding off screen stay `visible` (NProceedButton). Checking `is_visible_in_tree()`
   alone lifted the tick above an invisible arrow (issue #3). Check the game's own enabled state and the on-screen rect.
 
