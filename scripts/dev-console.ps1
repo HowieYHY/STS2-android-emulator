@@ -38,6 +38,14 @@ function Invoke-Adb {
     if ($LASTEXITCODE -ne 0) { throw "adb $($args -join ' ') failed (exit $LASTEXITCODE)" }
 }
 
+# Every key and text goes through here: it's sent only while the game is the focused window. A soak script once kept
+# typing while the game was closed for an install, and the keys reached the home screen and another app.
+function Send-GameInput {
+    $focus = "$(Invoke-Adb shell dumpsys window | Select-String 'mCurrentFocus' | Select-Object -First 1)".Trim()
+    if ($focus -notmatch [regex]::Escape("$Package/")) { throw "Stopped: the game isn't the focused app ($focus). Nothing was sent." }
+    Invoke-Adb shell input @args | Out-Null
+}
+
 if ($On -and $Off) { throw "Use -On or -Off, not both." }
 # "powershell -File" passes a list as one comma-joined string, so split on ',' and ';' ourselves.
 $Run = @($Run | ForEach-Object { $_ -split '[,;]' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
@@ -52,21 +60,21 @@ if ($Off) { Invoke-Adb shell rm -f $Flag | Out-Null; Write-Host "Full dev consol
 if ($Restart) {
     # Home first: the game only saves settings/progress on pause (Sts2Patcher "Save on pause"); force-stop alone
     # kills it without pausing and in-memory changes (e.g. a dismissed pop-up) are lost.
-    Invoke-Adb shell input keyevent KEYCODE_HOME | Out-Null
-    Start-Sleep -Seconds 2
+    $focus = "$(Invoke-Adb shell dumpsys window | Select-String 'mCurrentFocus' | Select-Object -First 1)"
+    if ($focus -match [regex]::Escape("$Package/")) { Send-GameInput keyevent KEYCODE_HOME; Start-Sleep -Seconds 2 }
     Invoke-Adb shell am force-stop $Package | Out-Null
     Invoke-Adb shell am start -n "$Package/com.godot.game.GodotApp" | Out-Null
     Write-Host "Restarted the app; wait for the main menu (~16 s) before -Run."
 }
 
 if ($Run.Count -gt 0) {
-    Invoke-Adb shell input keyevent KEYCODE_GRAVE | Out-Null  # backtick opens the console
+    Send-GameInput keyevent KEYCODE_GRAVE  # backtick opens the console
     Start-Sleep -Milliseconds 800
     foreach ($cmd in $Run) {
-        Invoke-Adb shell input text ($cmd.Trim() -replace ' ', '%s') | Out-Null  # "input text" takes %s for spaces
-        Invoke-Adb shell input keyevent KEYCODE_ENTER | Out-Null
+        Send-GameInput text ($cmd.Trim() -replace ' ', '%s')  # "input text" takes %s for spaces
+        Send-GameInput keyevent KEYCODE_ENTER
         Write-Host "> $cmd"
         Start-Sleep -Milliseconds 800
     }
-    Invoke-Adb shell input keyevent KEYCODE_GRAVE | Out-Null  # close it again
+    Send-GameInput keyevent KEYCODE_GRAVE  # close it again
 }
