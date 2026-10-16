@@ -250,6 +250,9 @@ scratchpad (re-create with
 - The 16 Oct 01:14 crash already showed 56 `Cannot allocate descriptor sets, error -12` lines but was filed as "reason
   unknown"; the 14:11 crash with the APK's own logcat showed they lead straight to the abort. **Treat repeated
   engine errors just before a crash as the lead suspect**, and count them per minute across sessions.
+- Text drawn with Android's system font (Godot's fallback when the game's font lacks a glyph) inherits the game font's
+  MSDF setting; MSDF breaks on the system CJK font's overlapping outlines (white wedges). Reproduce rendering bugs on
+  the PC with the phone's own font file (`adb pull /system/fonts/...`) before guessing; the game's fonts were fine.
 - Game screens that "hide" by sliding off screen stay `visible` (NProceedButton). Checking `is_visible_in_tree()`
   alone lifted the tick above an invisible arrow (issue #3). Check the game's own enabled state and the on-screen rect.
 

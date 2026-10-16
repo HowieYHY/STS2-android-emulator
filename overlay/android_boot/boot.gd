@@ -103,6 +103,14 @@ const PC_ONLY_NOTE := "  (not on Android)"
 const PC_ONLY_GREY := Color(0.55, 0.55, 0.55)
 const PC_ONLY_CHECK_FRAMES := 30  # how often to re-check: the game re-enables some controls (window changes)
 var _pc_only: Array = []
+## The language list shows 中文/繁體中文/日本語/한국어 in the current language's font. The Latin fonts (Kreon...) have no
+## CJK glyphs, so Godot fell back to Android's system font and drew it with the Latin font's MSDF setting; MSDF
+## can't draw that font's overlapping outlines and left white wedges over 文 and 繁 (reproduced on the PC with the
+## phone's font). Those fonts get the system font as an explicit fallback with MSDF off instead. It's the same file
+## Godot's own fallback loads, so it costs nothing extra; the game's own CJK fonts would add ~100 MB of glyph caches.
+const CJK_FALLBACK_PATH := "/system/fonts/NotoSansCJK-Regular.ttc"
+const LANGUAGE_ITEM := "NLanguageDropdownItem.cs"
+var _cjk_fallback: FontFile = null
 var _pick_holder: Control = null
 var _pick_pos := Vector2.ZERO
 var _inspect_was_open := false
@@ -212,6 +220,31 @@ func _on_node_added(node: Node) -> void:
 	if PC_ONLY_SETTINGS.has(_script_file(node)):
 		_pc_only.append(node)
 		node.ready.connect(func() -> void: _disable_pc_only.call_deferred(node), CONNECT_ONE_SHOT)
+	elif _script_file(node) == LANGUAGE_ITEM:
+		node.ready.connect(func() -> void: _add_cjk_fallback_to(node), CONNECT_ONE_SHOT)
+
+
+func _add_cjk_fallback_to(item: Node) -> void:
+	if _cjk_fallback == null:
+		if not FileAccess.file_exists(CJK_FALLBACK_PATH):
+			return
+		_cjk_fallback = FontFile.new()
+		_cjk_fallback.load_dynamic_font(CJK_FALLBACK_PATH)
+		_cjk_fallback.multichannel_signed_distance_field = false
+	for label in item.find_children("*", "RichTextLabel", true, false) + item.find_children("*", "Label", true, false):
+		for font_name in ["normal_font", "bold_font", "font"]:
+			if label.has_theme_font(font_name):
+				_add_fallback(label.get_theme_font(font_name), _cjk_fallback)
+
+
+## Adds a fallback where Godot looks for it: a FontVariation without fallbacks of its own uses its base font's.
+func _add_fallback(font: Font, fallback: Font) -> void:
+	while font is FontVariation and font.fallbacks.is_empty() and font.base_font != null:
+		font = font.base_font
+	if font == null or font == fallback or font.fallbacks.has(fallback):
+		return
+	font.fallbacks = font.fallbacks + [fallback]
+	print("[sts2port] CJK fallback added to ", font.resource_path)
 
 
 func _disable_pc_only(node: Node) -> void:

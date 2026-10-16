@@ -93,6 +93,7 @@ through Android's ARM translation) with the Pixel 9a's 1080x2424 screen, the 0.1
 | Picks (tick) | Anything taken the moment it's clicked: card rewards, choose-a-card/relic, shop cards, relics and potions. A tap is the game's own right-click inspect (inspect screen, or the tooltip) and the game's confirm tick slides in at the right edge; the tick replays a real left click on the item, straight through the closing inspect screen. Back or tapping elsewhere cancels. The treasure room's single relic is taken on tap, and event/Ancient options are chosen on tap (long-press shows their tooltip): no tick. The tick moves above the Proceed/Skip arrow only if that arrow is enabled and on screen. Screens with their own preview + confirm (deck upgrade/remove/transform, bundles) keep tap = click. |
 | Dev console | `scripts\dev-console.ps1 -On -Restart` turns on the game's full console (it creates a `dev_console` file next to the packs; the boot script then sets `full_console` in settings.save, and removes it again once the file is gone). `-Run "gold 200; room shop"` types commands into it; `-Off` turns it off. Used for testing instead of playing to a screen. |
 | Frame pacing | Swappy is turned off in the overlay: with it on, about one launch in three froze before the first frame. |
+| Language list | 中文 and 繁體中文 drew with white wedges over 文 and 繁. The Latin UI fonts (Kreon...) have no CJK glyphs, so Godot fell back to Android's `NotoSansCJK-Regular.ttc` and drew it with Kreon's MSDF setting, which can't handle that font's overlapping outlines (reproduced on the PC with the phone's font; the game's own CJK fonts are fine). boot.gd gives the list's fonts that system font as an explicit fallback with MSDF off. Checked on the phone, 17 Oct 2026. With Chinese as the game language the game switches to its own CJK fonts (FontManager), which draw cleanly on the PC; not tried on the phone. |
 
 ## How it works
 
@@ -248,9 +249,10 @@ Applied to a copy with Mono.Cecil; each one checks the code shape and fails loud
   So the descriptor errors cause these crashes. Godot hands out descriptor sets from pools of
   `rendering/rendering_device/vulkan/max_descriptors_per_pool` (default 64) and gives up when the driver refuses one.
   The overlay now sets it to 1024 (pushed 16 Oct, overlay SHA-1 `7e3deee6`; reaches the menu, port code from the
-  APK). Not yet confirmed over a long session: check the captured logcat for `error -12` after the next long play.
-- Settings → Language: the two Chinese entries (中文, 繁體中文) are drawn with white blocks over them in the
-  list (Japanese and Korean are fine). Not investigated yet; check whether Chinese text in-game is affected.
+  APK). Soak test, 17 Oct (Profile 2, dev console): 34 different fights (normals, elites incl. Mytes and Phrog
+  Parasite, two bosses) with card rewards opened, 20 minutes in one session: no `error -12`, no crash, RSS steady at
+  ~1.7 GB. `win` ends fights without card plays, and the soak wasn't run on the old setting (64), so it doesn't prove
+  it would have failed there: a long real session is the final check (count `error -12` in the captured logcat).
 - Rooms entered with the dev console (`room treasure`...) aren't part of the saved map: after a restart the run
   resumes at the last real map node and anything gained there is gone. Expected; only matters for testing.
 - Once, tapping a potion's Drink right after opening its menu didn't drink it; the same taps worked on the next
