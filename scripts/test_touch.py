@@ -21,7 +21,7 @@ def main():
         for script in ("boot.gd", "port_loader.gd"):
             shutil.copyfile(repo / "overlay/android_boot" / script, project / script)
             subprocess.run([args.godot, "--headless", "--path", work, "--check-only", "--script", script], check=True)
-        for test in ("touch_coordinates.gd", "touch_picks.gd", "settings_android.gd", "cjk_fallback.gd"):
+        for test in ("touch_coordinates.gd", "touch_picks.gd", "settings_android.gd", "cjk_fallback.gd", "version_label.gd"):
             shutil.copyfile(repo / "tools/tests" / test, project / test)
             subprocess.run([args.godot, "--headless", "--path", work, "--script", test], check=True, timeout=60)
 

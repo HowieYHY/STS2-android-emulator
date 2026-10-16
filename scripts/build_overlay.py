@@ -152,6 +152,16 @@ def main():
     files["project.binary"] = pcklib.write_ecfg(patched)
     pck.close()
 
+    # The game's build stamp (version, commit, date). The game only looks for it next to its executable, which is
+    # read-only on Android, so its corner label said "NONE"; boot.gd shows it from here instead. Taken from the same
+    # install as the packs, so it names the build that's really on the phone.
+    release_info = os.path.join(a.game_dir, "release_info.json")
+    if os.path.isfile(release_info):
+        with open(release_info, "rb") as f:
+            files["android_boot/release_info.json"] = f.read()
+    else:
+        print(f"WARNING: no release_info.json in {a.game_dir}; the game version will show as unknown")
+
     # 4. Our own overlay files.
     for name in ("boot.gd", "port_loader.gd"):
         with open(os.path.join(REPO, "overlay", "android_boot", name), "rb") as f:

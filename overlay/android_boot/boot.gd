@@ -111,6 +111,16 @@ var _pc_only: Array = []
 const CJK_FALLBACK_PATH := "/system/fonts/NotoSansCJK-Regular.ttc"
 const LANGUAGE_ITEM := "NLanguageDropdownItem.cs"
 var _cjk_fallback: FontFile = null
+## The port's version, added to the game's own small build label in the top-right corner (main menu and in a run;
+## NDebugInfoLabelManager's %ReleaseInfo), named like the GitHub releases ("Android 0.1.6"). Re-applied with the
+## PC-only check, since the game rewrites that label (e.g. once its commit lookup finishes).
+const DEBUG_INFO := "NDebugInfoLabelManager.cs"
+const PORT_VERSION_FILE := "res://android_boot/version.txt"  # port.pck's stamp: "APK 0.1.6 (7), commit 539956e"
+const GAME_RELEASE_INFO := "res://android_boot/release_info.json"  # the game's own, copied in by build_overlay.py
+var _build_labels: Array = []
+var _port_version := ""
+var _game_version := ""
+var _game_date := ""
 var _pick_holder: Control = null
 var _pick_pos := Vector2.ZERO
 var _inspect_was_open := false
@@ -205,6 +215,10 @@ func _process(_delta: float) -> void:
 		_pc_only = _pc_only.filter(func(n): return is_instance_valid(n))
 		for node in _pc_only:
 			_disable_pc_only(node)
+	if not _build_labels.is_empty() and frame % PC_ONLY_CHECK_FRAMES == 0:
+		_build_labels = _build_labels.filter(func(l): return is_instance_valid(l))
+		for label in _build_labels:
+			_stamp_port_version(label)
 	if _perf_hint != null:
 		var now := Time.get_ticks_usec()
 		if _perf_hint_last > 0:
@@ -222,6 +236,38 @@ func _on_node_added(node: Node) -> void:
 		node.ready.connect(func() -> void: _disable_pc_only.call_deferred(node), CONNECT_ONE_SHOT)
 	elif _script_file(node) == LANGUAGE_ITEM:
 		node.ready.connect(func() -> void: _add_cjk_fallback_to(node), CONNECT_ONE_SHOT)
+	elif _script_file(node) == DEBUG_INFO:
+		node.ready.connect(func() -> void: _add_build_label(node), CONNECT_ONE_SHOT)
+
+
+func _add_build_label(manager: Node) -> void:
+	var label = manager.get_node_or_null("%ReleaseInfo")
+	if label is Label:
+		_build_labels.append(label)
+		_stamp_port_version(label)
+
+
+## Main menu: the game's two lines (version, date) plus ours. In a run: "[version] (date)" plus ours on one line.
+## The game writes "NONE" and "???" there because it can't find its release_info.json on Android; the overlay
+## carries a copy from the install its packs were built from (build_overlay.py), so those become the real values.
+func _stamp_port_version(label: Label) -> void:
+	if _port_version == "":
+		var stamp := FileAccess.get_file_as_string(PORT_VERSION_FILE).strip_edges()
+		var found := RegEx.create_from_string("APK (\\S+)").search(stamp)
+		_port_version = "Android " + (found.get_string(1) if found != null else "(overlay copy)")
+		var info = JSON.parse_string(FileAccess.get_file_as_string(GAME_RELEASE_INFO)) \
+				if FileAccess.file_exists(GAME_RELEASE_INFO) else null
+		if info is Dictionary:
+			_game_version = str(info.get("version", ""))
+			_game_date = str(info.get("date", "")).left(10).replace("-", ".")  # the game's yyyy.MM.dd
+	if label.text.ends_with(_port_version):
+		return
+	var text := label.text
+	if _game_version != "":
+		text = text.replace("NONE", _game_version)
+	if _game_date != "":
+		text = text.replace("???", _game_date)
+	label.text = text + ("\n" if "\n" in text else "  ·  ") + _port_version
 
 
 func _add_cjk_fallback_to(item: Node) -> void:
