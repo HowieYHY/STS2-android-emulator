@@ -253,6 +253,11 @@ scratchpad (re-create with
 - Text drawn with Android's system font (Godot's fallback when the game's font lacks a glyph) inherits the game font's
   MSDF setting; MSDF breaks on the system CJK font's overlapping outlines (white wedges). Reproduce rendering bugs on
   the PC with the phone's own font file (`adb pull /system/fonts/...`) before guessing; the game's fonts were fine.
+- A soak script sending `adb shell input` kept running after its background task was "stopped" (TaskStop killed
+  the outer shell, not the loop). While the game was closed for an APK install, its taps and typing hit the home
+  screen and opened the owner's banking app (17 Oct). **Any script that sends input must check that the game is the
+  focused window before every tap/key (`dumpsys window | grep mCurrentFocus`) and stop otherwise; kill it by process
+  (`Get-CimInstance Win32_Process` on its command line) and confirm none remain before touching the phone again.**
 - Game screens that "hide" by sliding off screen stay `visible` (NProceedButton). Checking `is_visible_in_tree()`
   alone lifted the tick above an invisible arrow (issue #3). Check the game's own enabled state and the on-screen rect.
 
