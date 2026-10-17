@@ -60,10 +60,11 @@ var _queue: Array = []  # [due process frame, InputEvent or Callable], in order
 ## game's own inspect (card/relic inspect screen, shop preview; otherwise the hover tooltip stays up), and the game's
 ## own confirm button slides in at its usual place on the right edge. The tick replays a real left click on the item, so the game takes it exactly as
 ## with a mouse. Screens that already have their own preview + confirm step (deck upgrade/remove/transform, bundles)
-## keep tap = click, and so do event options (owner's choice: a long-press shows their tooltip instead).
+## keep tap = click, and so do event options and the choose-a-card screen (owner's choice, issues #1 and #9: potions,
+## Discovery, the Knowledge Demon's curses...; a long-press inspects instead).
 ## Matched by the C# script file of the item, and of its screen when the item type is shared.
 const PICK_ITEMS := {
-	"NGridCardHolder.cs": ["NCardRewardSelectionScreen.cs", "NChooseACardSelectionScreen.cs"],
+	"NGridCardHolder.cs": ["NCardRewardSelectionScreen.cs"],
 	"NRelicBasicHolder.cs": ["NChooseARelicSelection.cs"],
 	"NMerchantCard.cs": [],
 	"NMerchantRelic.cs": [],
@@ -79,9 +80,18 @@ const NO_HOVER := Vector2(-10000, -10000)  # cursor parked off screen, so nothin
 ## A closing screen fades out for about 0.25 s, and its card/popup would still catch taps until it hides.
 const INSPECT_SCREENS := {"NInspectCardScreen.cs": ".", "NInspectRelicScreen.cs": "Backstop"}
 const CLICK_THROUGH_META := "sts2port_click_through"
+const GAME := "/root/Game"
 const INSPECTION_CONTAINER := "/root/Game/InspectionContainer"
 const CONFIRM_BUTTON_SCENE := "res://scenes/ui/confirm_button.tscn"
 const PROCEED_GAP := 12.0  # px between a lifted tick and the Proceed/Skip arrow below it
+## NInspectCardScreen.Open fades its card in from transparent over 0.25 s (and springs it bigger from 0.1 s), but the
+## hover tips beside it (keywords, and cards it refers to) appear at full strength at once, so the other card showed
+## first and the inspected card popped out after it (issue #8). Tips made as it opens fade in once the card is up.
+const INSPECT_CARD := "NInspectCardScreen.cs"
+const HOVER_TIP_SET := "NHoverTipSet.cs"
+const INSPECT_TIPS_DELAY := 0.2
+const INSPECT_TIPS_FADE := 0.1
+var _inspect_card_was_open := false
 ## Settings that do nothing on a phone (owner's request): shown greyed out and disabled, with a note on the label,
 ## the way the game itself greys Language during a run. Matched by script file. Fullscreen is hidden by the game's
 ## own fullscreen-only mode (Sts2Patcher).
@@ -211,6 +221,7 @@ func _process(_delta: float) -> void:
 			_send_input(item)
 	if _pick_holder != null:
 		_update_pick()
+	_delay_inspect_tips()
 	if not _pc_only.is_empty() and frame % PC_ONLY_CHECK_FRAMES == 0:
 		_pc_only = _pc_only.filter(func(n): return is_instance_valid(n))
 		for node in _pc_only:
@@ -605,6 +616,26 @@ func _let_closing_screens_through() -> void:
 	for screen in _inspect_screens():
 		if _closing(screen) and not screen.has_meta(CLICK_THROUGH_META):
 			_click_through(screen)
+
+
+## On the frame the card inspect screen opens, hide its tips and fade them in after the card (see INSPECT_CARD). Open
+## makes them itself, before this runs; tips made later (its arrows, the upgrade tickbox) show at once, as the card
+## doesn't fade then.
+func _delay_inspect_tips() -> void:
+	var screen: Control = null
+	for candidate in _inspect_screens():
+		if _script_file(candidate) == INSPECT_CARD and candidate.visible and not _closing(candidate):
+			screen = candidate
+	var opened := screen != null and not _inspect_card_was_open
+	_inspect_card_was_open = screen != null
+	if not opened:
+		return
+	var game := get_node_or_null(GAME)
+	var container = game.get("HoverTipsContainer") if game != null else null  # NGame's, where every tip set goes
+	for tips in _find_all_by_script(container if container is Node else get_tree().root, HOVER_TIP_SET, []):
+		if tips is CanvasItem and tips.get("_owner") == screen:
+			tips.modulate.a = 0.0
+			tips.create_tween().tween_property(tips, "modulate:a", 1.0, INSPECT_TIPS_FADE).set_delay(INSPECT_TIPS_DELAY)
 
 
 func _update_pick() -> void:

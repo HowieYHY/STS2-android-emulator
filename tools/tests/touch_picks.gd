@@ -127,6 +127,8 @@ func _run() -> void:
 	await _test_hand_card_let_go()
 	await _test_tick_lift()
 	await _test_take_through_closing_inspect()
+	await _test_choose_a_card_takes_on_tap()
+	await _test_inspect_tips_wait_for_card()
 	print("Touch pick checks: ", "PASS" if failures == 0 else "%d FAILURES" % failures)
 	quit(0 if failures == 0 else 1)
 
@@ -330,6 +332,82 @@ func _test_take_through_closing_inspect() -> void:
 	_check(not screen.visible, "the inspect screen hides at the end of its fade")
 	_check(backstop.mouse_filter == Control.MOUSE_FILTER_STOP, "the inspect backstop catches clicks again once hidden")
 	item.queue_free()
+	game.queue_free()
+	await _frames(2)
+
+
+## The choose-a-card screen (potions, Discovery, the Knowledge Demon's curses) takes a card on tap, with no tick
+## (issue #9); card rewards keep tap = inspect.
+func _test_choose_a_card_takes_on_tap() -> void:
+	for case in [["NChooseACardSelectionScreen.cs", MOUSE_BUTTON_LEFT], ["NCardRewardSelectionScreen.cs", MOUSE_BUTTON_RIGHT]]:
+		var screen := _box(_scripted(case[0], "extends Control
+"), Vector2.ZERO)
+		screen.size = Vector2(2424, 1080)
+		screen.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var card := _scripted("NGridCardHolder.cs", ITEM_SOURCE)
+		card.position = Vector2(900, 300)
+		card.size = Vector2(200, 200)
+		screen.add_child(card)
+		boot.shown.clear()
+		await _frames(2)
+		_tap_now(_centre(card))
+		await _frames(20)
+		var other := MOUSE_BUTTON_RIGHT if case[1] == MOUSE_BUTTON_LEFT else MOUSE_BUTTON_LEFT
+		_check(card.presses.has([case[1], true]) and not card.presses.has([other, true]),
+			"a tap on a card in %s %s" % [case[0], "takes it" if case[1] == MOUSE_BUTTON_LEFT else "inspects it"])
+		_check(boot.shown.has(true) == (case[1] == MOUSE_BUTTON_RIGHT),
+			"the tick %s in %s" % ["shows" if case[1] == MOUSE_BUTTON_RIGHT else "stays hidden", case[0]])
+		boot._clear_pick()
+		screen.queue_free()
+		await _frames(2)
+
+
+## The card inspect screen's hover tips (e.g. a card the inspected one refers to) appear only once its card has faded
+## in (issue #8); tips of anything else are left alone.
+const OPENING_CARD_SOURCE := """extends Control
+var screen: Control
+var tips_script: Script
+var tips: Control
+var other_tips: Control
+func _gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and not event.pressed:
+		screen.visible = true
+		screen.mouse_filter = MOUSE_FILTER_STOP
+		tips = tips_script.new()
+		tips._owner = screen
+		get_tree().root.add_child(tips)
+		other_tips = tips_script.new()
+		other_tips._owner = self
+		get_tree().root.add_child(other_tips)
+"""
+func _test_inspect_tips_wait_for_card() -> void:
+	var game := _inspection_container()
+	var screen := _scripted("NInspectCardScreen.cs", INSPECT_SOURCE)
+	screen.visible = false
+	screen.size = Vector2(2424, 1080)
+	game.get_node("InspectionContainer").add_child(screen)
+	var card := _box(_scripted("NMerchantCard.cs", OPENING_CARD_SOURCE), Vector2(900, 300))
+	card.screen = screen
+	card.tips_script = _scripted("NHoverTipSet.cs", "extends Control
+var _owner: Control
+").get_script()
+	await _frames(2)
+	_tap_now(_centre(card))
+	for i in range(20):
+		await process_frame
+		if card.tips != null:
+			break
+	_check(card.tips != null, "the tap opened the inspect screen")
+	if card.tips != null:
+		await process_frame
+		_check(card.tips.modulate.a < 0.01, "the inspect screen's tips are hidden while its card fades in")
+		_check(card.other_tips.modulate.a == 1.0, "other tips are left alone")
+		await create_timer(0.4).timeout
+		_check(card.tips.modulate.a > 0.99, "the inspect screen's tips are shown once its card is up")
+		card.tips.queue_free()
+		card.other_tips.queue_free()
+	boot._clear_pick()
+	card.queue_free()
 	game.queue_free()
 	await _frames(2)
 

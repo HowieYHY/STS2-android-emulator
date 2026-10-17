@@ -39,7 +39,8 @@ Plan: `C:\Users\Admin\.claude\plans\i-want-to-make-atomic-glacier.md` (riskiest 
 - **Every** selection (anything where a tap commits a choice: rewards, shop cards/relics/potions, event picks)
   gets tap = inspect + a confirm tick. Don't narrow this to a few screens. Exceptions (user): the treasure room
   chest relic is taken on tap, no tick (there's only one relic, nothing to choose between); event and Ancient
-  options are chosen on tap, no tick, and a long-press shows their info (issue #1).
+  options are chosen on tap, no tick, and a long-press shows their info (issue #1). The choose-a-card screen
+  (potions, Discovery, Knowledge Demon curses, Toolbox...) is also tap = take, no tick (issue #9).
 - Settings that do nothing on Android are greyed, disabled and labelled "(not on Android)" (user, 13 Oct 2026), not
   hidden; add new ones to `PC_ONLY_SETTINGS` in boot.gd. Controller settings stay (Bluetooth controllers work).
   User: FPS Limit stays as is (values above 60 do nothing, but 24-60 work); no 120 Hz work, no long-press End Turn.
@@ -76,7 +77,7 @@ Plan: `C:\Users\Admin\.claude\plans\i-want-to-make-atomic-glacier.md` (riskiest 
 ## Game version verification
 
 Current reference game: **v0.111.0**, commit `41cef1ea`, branch `v0.111.0`.
-Source: `D:\Steam\steamapps\common\Slay the Spire 2\release_info.json`; verified **17 October 2026** (also
+Source: `D:\Steam\steamapps\common\Slay the Spire 2\release_info.json`; verified **18 October 2026** (also 17 October;
 14 October 2026 from `C:\Program Files (x86)\Steam\...` on the second PC, user `howie`).
 Last phone-tested game build: **v0.111.0**, commit `41cef1ea`, on **16 October 2026** (APK 0.1.5: card plays,
 issue #7 let-go, Phrog Parasite elite, logcat capture; Profile 2); release_info.json re-read from `D:\Steam\...` that
