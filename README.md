@@ -254,6 +254,15 @@ Applied to a copy with Mono.Cecil; each one checks the code shape and fails loud
   Parasite, two bosses) with card rewards opened, 20 minutes in one session: no `error -12`, no crash, RSS steady at
   ~1.7 GB. `win` ends fights without card plays, and the soak wasn't run on the old setting (64), so it doesn't prove
   it would have failed there: a long real session is the final check (count `error -12` in the captured logcat).
+- A fourth SIGABRT (17 Oct 17:51, APK 0.1.7, overlay `7a60d270`, game v0.111.0, 1.0 GB RSS, owner's run), during
+  the Act 3 boss (Test Subject, phase 3), four minutes into the session, a second after a Survivor discard. A
+  different shape from the 14:11 one: no `error -12` (none in any 17 Oct session, so the 1024 pool setting holds),
+  and nothing unusual logged before it. The first line is `FORTIFY: pthread_mutex_lock called on a destroyed mutex`
+  on a thread that had never logged (not the game thread). That thread then ran Godot's shutdown
+  (`BUG: Unreferenced static string`) while the game thread was still playing, which is why the game thread logged
+  `Cannot get class ''` and Spine `Expected BoundObject to be a SpineEvent` errors last: those are side effects. No
+  tombstone again (something catches the abort before Android's crash dumper). The game reloaded at the start of
+  the fight and the owner won it on the next launch. Which library the thread belongs to is unknown; seen once.
 - Rooms entered with the dev console (`room treasure`...) aren't part of the saved map: after a restart the run
   resumes at the last real map node and anything gained there is gone. Expected; only matters for testing.
 - Once, tapping a potion's Drink right after opening its menu didn't drink it; the same taps worked on the next
