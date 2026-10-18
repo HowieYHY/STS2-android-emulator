@@ -44,6 +44,11 @@ const HOLD_FRAMES := 3
 const TAP_RETRIES := 2  # times a tap hovers again when what's hovered can't be trusted
 const DRAG_RELEASE_FRAMES := 2  # between a drag's last motion and its release (see _on_touch_up)
 const CARD_PLAY_SETTLE_FRAMES := 6  # after a drag's release, before a card play still running is cancelled
+## Godot only re-checks what the cursor is over when the mouse moves. A click that opens something over the clicked
+## item (the deck upgrade preview over its grid card) left the item hovered, with its hover tips on top of the new
+## screen (issue #10); on PC the mouse always moves a little and they go. A tap's click is followed by the cursor
+## sent to the same spot again; if nothing covers the item, hover doesn't change and its tooltip stays up.
+const REHOVER_FRAMES := 2
 
 enum Touch { NONE, PENDING, DRAGGING, LONG_PRESSED }
 var _touch := Touch.NONE
@@ -470,15 +475,22 @@ func _end_card_play() -> void:
 ## Hover (if the cursor isn't there yet), press, hold, release. The click goes ahead of anything newer touches have
 ## queued, and those wait until it has landed: a quick next tap must be judged by what this click opened (e.g. the
 ## inspect screen). Otherwise a burst of taps left the tick on one shop item while another one was on display.
-func _click(button: MouseButton, pos: Vector2) -> void:
+## With rehover, the cursor is sent to the same spot once more after the release (see REHOVER_FRAMES).
+func _click(button: MouseButton, pos: Vector2, rehover := false) -> void:
 	var mask := MOUSE_BUTTON_MASK_LEFT if button == MOUSE_BUTTON_LEFT else MOUSE_BUTTON_MASK_RIGHT
 	var later := _queue
 	_queue = []
+	var newest_mouse := _last_mouse  # where the queued events taken out (if any) leave the cursor
 	var press_frame := _frame()
 	if _sent_mouse != pos:
 		press_frame = _enqueue(_motion(pos, 0), _frame()) + HOVER_FRAMES
 	_enqueue(_button(button, true, pos, mask), press_frame)
-	_append_delayed(later, _enqueue(_button(button, false, pos, 0), press_frame + HOLD_FRAMES) + 1)
+	var done := _enqueue(_button(button, false, pos, 0), press_frame + HOLD_FRAMES)
+	if rehover:
+		done = _enqueue(_motion(pos, 0), done + REHOVER_FRAMES)
+	if not later.is_empty():
+		_last_mouse = newest_mouse
+	_append_delayed(later, done + 1)
 
 
 ## Run a callable ahead of everything queued, on frame `due`; the rest waits behind it.
@@ -539,7 +551,7 @@ func _tap(pos: Vector2, tries := 0) -> void:
 			keep = keep or _within(hovered, screen)
 		if not keep:
 			_clear_pick()
-		_click(MOUSE_BUTTON_LEFT, pos)
+		_click(MOUSE_BUTTON_LEFT, pos, true)
 		return
 	_clear_pick()
 	_pick_holder = holder

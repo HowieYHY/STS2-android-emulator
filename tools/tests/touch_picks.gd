@@ -129,6 +129,7 @@ func _run() -> void:
 	await _test_take_through_closing_inspect()
 	await _test_choose_a_card_takes_on_tap()
 	await _test_inspect_tips_wait_for_card()
+	await _test_tap_unhovers_covered_card()
 	print("Touch pick checks: ", "PASS" if failures == 0 else "%d FAILURES" % failures)
 	quit(0 if failures == 0 else 1)
 
@@ -409,6 +410,50 @@ var _owner: Control
 	boot._clear_pick()
 	card.queue_free()
 	game.queue_free()
+	await _frames(2)
+
+
+## Issue #10: a tap on a card in the deck upgrade grid opens the upgrade preview over it. The card must lose its hover
+## (the game clears its hover tips then), as it does on PC when the mouse moves; a finger's cursor never moves.
+const COVERING_CARD_SOURCE := """extends Control
+var hovered := false
+var preview: Control
+func _ready() -> void:
+	mouse_entered.connect(func() -> void: hovered = true)
+	mouse_exited.connect(func() -> void: hovered = false)
+func _gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
+		preview.visible = true
+		preview.mouse_filter = MOUSE_FILTER_STOP
+"""
+func _test_tap_unhovers_covered_card() -> void:
+	var screen := _box(_scripted("NDeckUpgradeSelectScreen.cs", "extends Control
+"), Vector2.ZERO)
+	screen.size = Vector2(2424, 1080)
+	screen.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var card := _scripted("NGridCardHolder.cs", COVERING_CARD_SOURCE)
+	card.position = Vector2(900, 300)
+	card.size = Vector2(200, 200)
+	screen.add_child(card)
+	var preview := Control.new()
+	preview.size = Vector2(2424, 1080)
+	preview.visible = false
+	preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	screen.add_child(preview)
+	card.preview = preview
+	var plain := _box(_scripted("NPlainCard.cs", COVERING_CARD_SOURCE), Vector2(1400, 300))
+	plain.preview = Control.new()  # a click that covers nothing
+	await _frames(2)
+	_tap_now(_centre(card))
+	await _frames(20)
+	_check(preview.visible, "the tap clicked the card and opened the preview")
+	_check(not card.hovered, "the card covered by the preview its tap opened is no longer hovered")
+	_tap_now(_centre(plain))
+	await _frames(20)
+	_check(plain.hovered, "a tapped card that nothing covers stays hovered (its tooltip stays up)")
+	plain.preview.free()
+	plain.queue_free()
+	screen.queue_free()
 	await _frames(2)
 
 
