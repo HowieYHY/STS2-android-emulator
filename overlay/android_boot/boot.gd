@@ -129,6 +129,14 @@ var _cjk_fallback: FontFile = null
 ## The port's version, added to the game's own small build label in the top-right corner (main menu and in a run;
 ## NDebugInfoLabelManager's %ReleaseInfo), named like the GitHub releases ("Android 0.1.6"). Re-applied with the
 ## PC-only check, since the game rewrites that label (e.g. once its commit lookup finishes).
+## The End Turn button flies to 1604/1920 of the visible width, computed when the turn starts. On the phone it was left at
+## x = 1604 on a 2424 px wide screen, half hidden behind the hand (issue #12). Put it where the game's formula
+## says for the width the screen has now.
+const END_TURN_BUTTON := "NEndTurnButton.cs"
+const END_TURN_X_RATIO := 1604.0 / 1920.0
+const END_TURN_CHECK_FRAMES := 5
+var _end_turn_buttons: Array = []
+var _end_turn_logged := 0.0
 const DEBUG_INFO := "NDebugInfoLabelManager.cs"
 const PORT_VERSION_FILE := "res://android_boot/version.txt"  # port.pck's stamp: "APK 0.1.6 (7), commit 539956e"
 const GAME_RELEASE_INFO := "res://android_boot/release_info.json"  # the game's own, copied in by build_overlay.py
@@ -231,6 +239,8 @@ func _process(_delta: float) -> void:
 		_pc_only = _pc_only.filter(func(n): return is_instance_valid(n))
 		for node in _pc_only:
 			_disable_pc_only(node)
+	if not _end_turn_buttons.is_empty() and frame % END_TURN_CHECK_FRAMES == 0:
+		_place_end_turn_buttons()
 	if not _build_labels.is_empty() and frame % PC_ONLY_CHECK_FRAMES == 0:
 		_build_labels = _build_labels.filter(func(l): return is_instance_valid(l))
 		for label in _build_labels:
@@ -247,13 +257,29 @@ func _process(_delta: float) -> void:
 ## node_added fires before the node's _ready, and the settings screen sets its labels in its own _ready (after its
 ## children's), so wait for ready and then one more frame.
 func _on_node_added(node: Node) -> void:
-	if PC_ONLY_SETTINGS.has(_script_file(node)):
+	if _script_file(node) == END_TURN_BUTTON:
+		_end_turn_buttons.append(node)
+	elif PC_ONLY_SETTINGS.has(_script_file(node)):
 		_pc_only.append(node)
 		node.ready.connect(func() -> void: _disable_pc_only.call_deferred(node), CONNECT_ONE_SHOT)
 	elif _script_file(node) == LANGUAGE_ITEM:
 		node.ready.connect(func() -> void: _add_cjk_fallback_to(node), CONNECT_ONE_SHOT)
 	elif _script_file(node) == DEBUG_INFO:
 		node.ready.connect(func() -> void: _add_build_label(node), CONNECT_ONE_SHOT)
+
+
+func _place_end_turn_buttons() -> void:
+	_end_turn_buttons = _end_turn_buttons.filter(func(n): return is_instance_valid(n))
+	for button in _end_turn_buttons:
+		if not button.is_inside_tree() or not button is Control:
+			continue
+		var width: float = button.get_viewport().get_visible_rect().size.x
+		var x := END_TURN_X_RATIO * width
+		if absf(button.position.x - x) > 1.0:
+			if absf(_end_turn_logged - button.position.x) > 1.0:
+				_end_turn_logged = button.position.x
+				print("[sts2port] End Turn: x ", button.position.x, " -> ", x, " (visible width ", width, ", window ", get_window().size, ")")
+			button.position.x = x
 
 
 func _add_build_label(manager: Node) -> void:
@@ -543,6 +569,14 @@ func _tap(pos: Vector2, tries := 0) -> void:
 			_enqueue(_motion(NO_HOVER, 0), _frame())
 		return
 	var holder := _pick_target(hovered)
+	if holder == null and _inspect_open() == null:
+		# Whatever is hovered, a plain click must never reach a shop item that's under the finger (issue #11: the fake
+		# merchant still bought on spam taps). Hover can name a control stacked over the item while the game's own
+		# hitbox under it still gets the click, so check the items' rects too and drop the tap.
+		var covered := _pick_item_at(pos)
+		if covered != null:
+			print("[sts2port] Pick: dropped a tap over ", covered.name, " (hovered ", hovered.name if hovered != null else "nothing", ")")
+			return
 	if holder == null:
 		# Taps on the take button or inside an open inspect screen keep the pick; _update_pick notices when the
 		# inspect screen closes. Any other tap drops it.
@@ -575,6 +609,15 @@ func _pick_target(control: Control) -> Control:
 		elif holder != null and file in PICK_ITEMS[_script_file(holder)]:
 			return holder
 		node = node.get_parent()
+	return null
+
+
+## A shown, stocked-looking pick item (see PICK_ITEMS) whose rect holds pos, whatever the hover says.
+func _pick_item_at(pos: Vector2) -> Control:
+	for file in PICK_ITEMS:
+		for item in _find_all_by_script(get_tree().root, file, []):
+			if item is Control and item.is_visible_in_tree() and _under(item, pos):
+				return item
 	return null
 
 
