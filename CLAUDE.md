@@ -10,7 +10,7 @@ Plan: `C:\Users\Admin\.claude\plans\i-want-to-make-atomic-glacier.md` (riskiest 
 - Anything that reads the game takes the game path as an argument and writes output **outside** the repo
   (scratchpad or a user-chosen folder).
 - Tell the user before each tool install and get confirmation; prefer winget.
-- **Always verify and update the actual STS2 game version in both README.md and CLAUDE.md when applicable**:
+- **Always verify and update the actual STS2 game version in README.md, docs/DEVELOPMENT.md and CLAUDE.md when applicable**:
   game-file inspection/patching, overlay or texture builds/pushes, game testing, and compatibility documentation.
   Follow "Game version verification" below; the port's APK version and Godot version are separate.
 - Commit locally in small steps. **Do not push** unless asked.
@@ -49,7 +49,7 @@ Plan: `C:\Users\Admin\.claude\plans\i-want-to-make-atomic-glacier.md` (riskiest 
 
 ## Testing on the emulator (user: when the phone isn't available, test on our own emulator first)
 - The emulator was removed on 13 Oct 2026 at the user's request (~18 GB); reinstall it when needed (user: "you can
-  download it the next time you need it") with the steps in README → Tools. It's an AVD `sts2test` (API 34 x86_64
+  download it the next time you need it") with the steps in docs/DEVELOPMENT.md → Tools. It's an AVD `sts2test` (API 34 x86_64
   Google APIs, 1080x2424 like the Pixel 9a); the arm64 APK runs through Android's ARM translation and the phone's
   dev-console workflow below works unchanged against it.
 - Emulator results are emulator results: say so, and don't record them as phone-tested. Native crashes inside
@@ -103,7 +103,7 @@ release_info.json: the game's corner label shows `v0.111.0` / `2026.08.13` / `An
 
 - Re-read `<GameDir>/release_info.json` from the actual game installation used for applicable work; use its
   `version`, `commit` and `branch` fields. Read the game folder only; never modify it or copy game files into the repo.
-- Update this record and README's "STS2 game version" section together, including the source and verification
+- Update this record and README (tested version line) and docs/DEVELOPMENT.md "STS2 game version" together, including the source and verification
   date, before committing relevant work. Do not infer the game version from the APK's `version/name`, the Godot
   engine version, file timestamps, or an old documentation heading.
 - When reporting phone compatibility, verify which game build its packs/assemblies came from using matching
@@ -116,7 +116,7 @@ release_info.json: the game's corner label shows `v0.111.0` / `2026.08.13` / `An
   resolve it; never guess or silently carry an old version forward as current.
 
 ## Known facts about the game
-See README "Feasibility findings" for the version-labelled analysis. Decompiled source lives only in the
+See docs/DEVELOPMENT.md "Feasibility findings" for the version-labelled analysis. Decompiled source lives only in the
 scratchpad (re-create with
 `ilspycmd -p -o <outside-repo> -r <game data dir> <game data dir>/sts2.dll`).
 
@@ -240,7 +240,7 @@ scratchpad (re-create with
   and doesn't end on release; PC then waits for a target click or a right click. On touch, cancel any play still
   running after the release (`NPlayerHand.CancelAllCardPlay`). Read the game's state machine before guessing.
 - The second PC (`C:\Users\howie`) has a different debug keystore from the releases': an APK built there would
-  force an uninstall (saves lost). Ship `boot.gd` fixes from it through the overlay (`port_code_overlay` flag, README).
+  force an uninstall (saves lost). Ship `boot.gd` fixes from it through the overlay (`port_code_overlay` flag, docs/DEVELOPMENT.md).
 - An `adb push` that fails half-way deletes the target file on the phone (the overlay was briefly gone). Back up
   first, make sure only one adb device is listed, and verify every push by hash.
 - The 16 Oct crash's abort reason was lost: the phone's main logcat buffer holds ~4 minutes and logd prunes the

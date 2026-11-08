@@ -28,7 +28,7 @@ param(
     [switch]$InstallApk,
     [switch]$ForceBigPck
 )
-$TestedGameVersion = "v0.111.0"  # keep in step with README "STS2 game version"
+$TestedGameVersion = "v0.111.0"  # keep in step with README and docs/DEVELOPMENT.md "STS2 game version"
 $ErrorActionPreference = "Stop"
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 if (-not $Apk) { $Apk = Join-Path $here "..\build\sts2port.apk" }
