@@ -6,7 +6,8 @@
 #>
 param(
     [string]$GameDir = "",
-    [string]$Repo = "HowieYHY/STS2-android-emulator"
+    [string]$Repo = "HowieYHY/STS2-android-emulator",
+    [switch]$CheckOnly   # test run: do everything except copying to the phone
 )
 $ErrorActionPreference = "Stop"
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -138,6 +139,7 @@ if ($apkFile) {
     Write-Host "Downloaded $($asset.name)"
 }
 
+if ($CheckOnly) { Write-Host ""; Write-Host "Check only: stopped before copying to the phone. APK: $apk" -ForegroundColor Yellow; return }
 Write-Host "Copying to the phone (the first time this takes several minutes: the game is about 2 GB)..."
 & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $here "scripts\push-game.ps1") -GameDir $GameDir -Apk $apk -Adb $adb -InstallApk
 if ($LASTEXITCODE -ne 0) { throw "Copying failed (see the message above)." }
