@@ -8,34 +8,26 @@ no warranty. Please don't share game files.
 
 **Tested with:** STS2 **v0.111.0** (commit `41cef1ea`), on a Pixel 9a (Android 17). Other game versions may not work.
 
-## What you need
+## Install (about 20 minutes, mostly copying)
 
-- Slay the Spire 2 on Steam (Windows PC)
-- A 64-bit Android phone (Android 7+, about 3 GB free)
-- On the PC: Python 3, the .NET 9 SDK and Android platform-tools
-  (`winget install Python.Python.3.12 Microsoft.DotNet.SDK.9 Google.PlatformTools`)
+You need Slay the Spire 2 on Steam (Windows PC) and a 64-bit Android phone (Android 7+, about 3 GB free).
 
-## Install (about 20 minutes)
-
-1. On the phone: Settings → About phone → tap *Build number* 7 times, then Developer options → turn on *USB debugging*.
-2. Download the newest `sts2port-…-arm64.apk` from [Releases](https://github.com/HowieYHY/STS2-android-emulator/releases/latest),
-   and the source (Code → Download ZIP).
-3. Plug the phone in, accept "Allow USB debugging", and in the source folder run:
-
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File scripts\push-game.ps1 -GameDir "<Steam>\steamapps\common\Slay the Spire 2" -Apk <downloaded apk> -InstallApk
-   ```
-
+1. On the phone: Settings > About phone > tap *Build number* 7 times, then Developer options > turn on *USB debugging*.
+2. On the PC: on this page click Code > Download ZIP, and unzip it.
+3. Plug the phone in and double-click **install.cmd** in the unzipped folder.
+   It installs what's missing (Python, .NET 9, Android tools), finds your Steam copy of the game, downloads the
+   latest app, and copies everything to the phone. Accept "Allow USB debugging" on the phone when asked.
 4. Open **Slay the Spire 2** on the phone. The first start takes about 20 seconds.
 
-No cable? On Android 11+, use Developer options → *Wireless debugging* → *Pair device with pairing code*, then
-`adb pair <ip:port> <code>` and `adb connect <ip:port>`, and run step 3. The PC and phone must be on the same network.
+Notes: Windows may ask permission while installing the tools. Windows may also warn about the downloaded script
+(More info > Run anyway). Without a cable (Android 11+): turn on Developer options > *Wireless debugging* and pair it with
+`adb pair <ip:port> <code>` and `adb connect <ip:port>` first; the PC and phone must be on the same network.
 
 ## Updating
 
 - **Port updates** (touch fixes and so on): install [Obtainium](https://github.com/ImranR98/Obtainium) on the phone and add
   this repo's URL. It installs new releases over the old app and keeps your saves.
-- **After a new Slay the Spire 2 version:** run step 3 again from the PC.
+- **After a new Slay the Spire 2 version:** double-click **install.cmd** again.
 
 ## Controls
 
