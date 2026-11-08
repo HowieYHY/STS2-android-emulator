@@ -5,6 +5,18 @@ original code (a Godot Android shell, stubs, Harmony patches, scripts and docs).
 you copy your own `SlayTheSpire2.pck` and `sts2.dll` from your Steam install to your phone with
 `scripts/push-game.ps1`.
 
+## Quick start for friends
+
+You need your own copy of Slay the Spire 2 on Steam (Windows PC) and a 64-bit Android phone. Nothing of the game is
+downloaded from here: your PC builds the phone files from your own install. Unofficial fan project, not affiliated
+with or endorsed by Mega Crit; no warranty. Please don't share game files.
+
+1. Download the newest `sts2port-...-arm64.apk` from [Releases](https://github.com/HowieYHY/STS2-android-emulator/releases/latest)
+   and the source (Code → Download ZIP).
+2. Follow [Setting it up on another phone](#setting-it-up-on-another-phone-minimal) (one script, about 20 minutes).
+3. Later versions: install [Obtainium](https://github.com/ImranR98/Obtainium) and add this repo's URL; it installs new
+   releases over the old app and keeps your saves (no token needed now the repo is public).
+
 Status: **playable on a Pixel 9a** (Android 17, Mali-G715): main menu, Spine animations, FMOD audio,
 character select, map, combat (drag a card onto an enemy plays it), card rewards, settings and saving across
 restarts (Continue resumes the run) and the port's touch layer (tap, drag, long-press = inspect, tap-to-inspect
@@ -160,16 +172,15 @@ code (do that once a later APK release contains the fix). Used on 14 October 202
 
 ## Updating the phone without the PC
 
-Fixes to the port's own code ship as GitHub releases of the APK (`scripts\release.ps1`). The repo is private, so
-the phone installs them with [Obtainium](https://github.com/ImranR98/Obtainium) and a read-only GitHub token:
+Fixes to the port's own code ship as GitHub releases of the APK (`scripts\release.ps1`). The repo is public, so
+the phone installs them with [Obtainium](https://github.com/ImranR98/Obtainium); no token is needed. (If the repo
+is ever made private again, create a fine-grained read-only token for it and paste it under Obtainium's GitHub
+source "Personal access token".)
 
-1. On GitHub: Settings → Developer settings → Fine-grained tokens → Generate. Repository access: only
-   `HowieYHY/STS2-android-emulator`; permissions: Contents **read-only**. Copy the token.
-2. Install Obtainium on the phone (from its GitHub releases or F-Droid). In Obtainium's Settings, paste the token
-   under the GitHub source's "Personal access token".
-3. Add App → `https://github.com/HowieYHY/STS2-android-emulator`. Obtainium finds the latest release's APK and
+1. Install Obtainium on the phone (from its GitHub releases or F-Droid).
+2. Add App → `https://github.com/HowieYHY/STS2-android-emulator`. Obtainium finds the latest release's APK and
    offers to install it over the existing app (same signing key: saves are kept).
-4. From then on Obtainium checks for new releases and installs them (one tap, or in the background on Android 12+
+3. From then on Obtainium checks for new releases and installs them (one tap, or in the background on Android 12+
    once it has installed the app itself).
 
 The game app itself stays offline (no INTERNET permission); only Obtainium downloads.

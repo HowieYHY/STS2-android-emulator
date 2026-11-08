@@ -259,7 +259,7 @@ scratchpad (re-create with
   the PC with the phone's own font file (`adb pull /system/fonts/...`) before guessing; the game's fonts were fine.
 - A soak script sending `adb shell input` kept running after its background task was "stopped" (TaskStop killed
   the outer shell, not the loop). While the game was closed for an APK install, its taps and typing hit the home
-  screen and opened the owner's banking app (17 Oct). **Any script that sends input must check that the game is the
+  screen and opened an unrelated app on the owner's phone (17 Oct). **Any script that sends input must check that the game is the
   focused window before every tap/key (`dumpsys window | grep mCurrentFocus`) and stop otherwise; kill it by process
   (`Get-CimInstance Win32_Process` on its command line) and confirm none remain before touching the phone again.**
 - The game started (something relaunched it after `adb install`) one second before `push-game.ps1` finished writing
