@@ -76,10 +76,20 @@ Plan: `C:\Users\Admin\.claude\plans\i-want-to-make-atomic-glacier.md` (riskiest 
 
 ## Game version verification
 
-Current reference game: **v0.111.0**, commit `41cef1ea`, branch `v0.111.0`.
+Current reference game: **v0.113.0**, commit `16ac0fe3`, branch `v0.113.0` (built 12 November 2026).
+Source: `C:\Program Files (x86)\Steam\steamapps\common\Slay the Spire 2\release_info.json` (second PC, user `howie`);
+verified **13 November 2026**.
+Last phone-tested game build: **v0.113.0**, commit `16ac0fe3`, on **13 November 2026** (APK 0.1.9; all five patches
+applied unchanged; menu with saved run, corner label, reward-card tap = inspect, card drag plays on target; Profile 2).
+Phone deployment, 13 November 2026: overlay `c4cc6421` and textures_astc `61407174` (1,557 textures) built on the second
+PC (Godot 4.5.1 .NET now in `C:\Tools\Godot\Godot_v4.5.1-stable_mono_win64\`, adb from winget Google.PlatformTools)
+plus the 2.15 GB game pck, all hash-checked; APK 0.1.9 unchanged. The previous packs (v0.111.0, incl. its game pck) are
+backed up in `%LOCALAPPDATA%\sts2port\backup-20261113` for a rollback.
+
+Previous reference game: **v0.111.0**, commit `41cef1ea`, branch `v0.111.0`.
 Source: `D:\Steam\steamapps\common\Slay the Spire 2\release_info.json`; verified **18 October 2026** (also 17 October;
 14 October 2026 from `C:\Program Files (x86)\Steam\...` on the second PC, user `howie`).
-Last phone-tested game build: **v0.111.0**, commit `41cef1ea`, on **16 October 2026** (APK 0.1.5: card plays,
+Last v0.111.0 phone test: **v0.111.0**, commit `41cef1ea`, on **16 October 2026** (APK 0.1.5: card plays,
 issue #7 let-go, Phrog Parasite elite, logcat capture; Profile 2); release_info.json re-read from `D:\Steam\...` that
 day. The deployed overlay is still the 14 October one, built from the reference installation on the second PC.
 Last emulator-tested game build: **v0.111.0**, commit `41cef1ea`, on **13 October 2026** (touch fixes for

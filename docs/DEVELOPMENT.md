@@ -27,7 +27,13 @@ and Android performance hints are enabled; combat frame-time spikes remain (see 
 
 ## STS2 game version
 
-The current reference game is **v0.111.0**, commit `41cef1ea`, branch `v0.111.0`, verified on
+The current reference game is **v0.113.0**, commit `16ac0fe3`, branch `v0.113.0` (built 12 November 2026), verified on
+**13 November 2026** from `C:\Program Files (x86)\Steam\steamapps\common\Slay the Spire 2\release_info.json` on the
+second PC. The phone runs it since that day (APK 0.1.9, overlay `c4cc6421`, textures `61407174`): all five Sts2Patcher
+patches applied unchanged, the menu loads with the saved run intact, the corner label shows `v0.113.0` / `2026.11.12` /
+`Android 0.1.9`, a reward-card tap inspects, and a dragged Strike plays on its target (Profile 2, dev console).
+
+Previous reference game: **v0.111.0**, commit `41cef1ea`, branch `v0.111.0`, verified on
 **18 October 2026** from `D:\Steam\steamapps\common\Slay the Spire 2\release_info.json` (also 17 October; the overlay
 pushed that day was built from it, and the in-game corner label shows it; also verified 14 October 2026 from `C:\Program Files (x86)\Steam\...` on the second PC).
 This is the STS2 game version; the Android port's APK version is tracked separately below.

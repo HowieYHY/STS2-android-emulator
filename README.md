@@ -6,7 +6,7 @@ This repo contains only the port's own code. It has **no game files**: your PC b
 Steam install. You need to own the game. Unofficial fan project, not affiliated with or endorsed by Mega Crit;
 no warranty. Please don't share game files.
 
-**Tested with:** STS2 **v0.111.0** (commit `41cef1ea`), on a Pixel 9a (Android 17). Other game versions may not work.
+**Tested with:** STS2 **v0.113.0** (commit `16ac0fe3`), on a Pixel 9a (Android 17). Other game versions may not work.
 
 ## Install (about 20 minutes, mostly copying)
 
